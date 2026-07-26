@@ -30,10 +30,11 @@ public final class SortContainerGui implements Listener {
     private final SomeUtilsPlugin plugin;
     private final Map<UUID, SortSession> sessions = new ConcurrentHashMap<>();
     private final Map<UUID, Boolean> opening = new ConcurrentHashMap<>();
-    private final SortControlVisuals visuals = new SortControlVisuals(sessions);
+    private final SortControlVisuals visuals;
 
     public SortContainerGui(SomeUtilsPlugin plugin) {
         this.plugin = plugin;
+        this.visuals = new SortControlVisuals(plugin, sessions);
     }
 
     public void registerPacketVisuals() {

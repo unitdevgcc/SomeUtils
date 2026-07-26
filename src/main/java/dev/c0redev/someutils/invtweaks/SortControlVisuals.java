@@ -1,5 +1,8 @@
 package dev.c0redev.someutils.invtweaks;
 
+import dev.c0redev.someutils.SomeUtilsPlugin;
+import dev.c0redev.someutils.lang.Language;
+import dev.c0redev.someutils.lang.LanguageService;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
@@ -14,6 +17,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSe
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWindowItems;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -26,10 +30,12 @@ final class SortControlVisuals {
     private static final int CONTROL_ROW = 9;
 
     private final Map<UUID, SortSession> sessions;
+    private final LanguageService languageService;
     private PacketListenerAbstract listener;
 
-    SortControlVisuals(Map<UUID, SortSession> sessions) {
+    SortControlVisuals(SomeUtilsPlugin plugin, Map<UUID, SortSession> sessions) {
         this.sessions = sessions;
+        this.languageService = plugin.getLanguageService();
     }
 
     void register() {
@@ -82,8 +88,9 @@ final class SortControlVisuals {
             return;
         }
         session.windowId = packet.getWindowId();
+        Player player = resolvePlayer(event);
         for (int slot = 0; slot < CONTROL_ROW; slot++) {
-            replaceVisual(items, slot);
+            replaceVisual(items, slot, player);
         }
         packet.setItems(items);
     }
@@ -94,8 +101,16 @@ final class SortControlVisuals {
             return;
         }
         ItemStack visual = packet.getItem().copy();
-        applyModel(visual, packet.getSlot());
+        applyModel(visual, packet.getSlot(), resolvePlayer(event));
         packet.setItem(visual);
+    }
+
+    private static Player resolvePlayer(PacketSendEvent event) {
+        Object packetPlayer = event.getPlayer();
+        if (packetPlayer instanceof Player player) {
+            return player;
+        }
+        return event.getUser() == null ? null : Bukkit.getPlayer(event.getUser().getUUID());
     }
 
     private static boolean isControlLayout(List<ItemStack> items) {
@@ -110,13 +125,13 @@ final class SortControlVisuals {
         return item.getType().getName().getKey();
     }
 
-    private static void replaceVisual(List<ItemStack> items, int slot) {
+    private void replaceVisual(List<ItemStack> items, int slot, Player player) {
         ItemStack visual = items.get(slot).copy();
-        applyModel(visual, slot);
+        applyModel(visual, slot, player);
         items.set(slot, visual);
     }
 
-    private static void applyModel(ItemStack item, int slot) {
+    private void applyModel(ItemStack item, int slot, Player player) {
         String model = switch (slot) {
         case 1 -> "sort";
         case 2 -> "columns";
@@ -127,30 +142,33 @@ final class SortControlVisuals {
         default -> "fill";
         };
         item.setComponent(ComponentTypes.ITEM_MODEL, new ItemModel(new ResourceLocation("someutils", "gui/" + model)));
-        item.setComponent(ComponentTypes.ITEM_NAME, Component.text(buttonName(slot), NamedTextColor.WHITE));
-        item.setComponent(ComponentTypes.LORE, new ItemLore(List.of(Component.text(buttonLore(slot), NamedTextColor.GRAY))));
+        item.setComponent(ComponentTypes.ITEM_NAME, Component.text(buttonName(player, slot), NamedTextColor.WHITE));
+        item.setComponent(ComponentTypes.LORE, new ItemLore(List.of(Component.text(buttonLore(player, slot), NamedTextColor.GRAY))));
     }
 
-    private static String buttonName(int slot) {
-        return switch (slot) {
-        case 1 -> "Сортировка";
-        case 2 -> "По столбцам";
-        case 3 -> "Объединить";
-        case 6 -> "Предыдущая страница";
-        case 7 -> "Следующая страница";
-        case 8 -> "Закрыть";
-        default -> "InvTweaks";
+    private String buttonName(Player player, int slot) {
+        String key = switch (slot) {
+        case 1 -> "invtweaks.button.sort";
+        case 2 -> "invtweaks.button.columns";
+        case 3 -> "invtweaks.button.stack";
+        case 6 -> "invtweaks.button.previous";
+        case 7 -> "invtweaks.button.next";
+        case 8 -> "invtweaks.button.close";
+        default -> "invtweaks.button.default";
         };
+        return player == null ? languageService.tr(Language.EN, key) : languageService.tr(player, key);
     }
 
-    private static String buttonLore(int slot) {
-        return switch (slot) {
-        case 1 -> "Сортировать по категории и названию";
-        case 2 -> "Заполнить контейнер по столбцам";
-        case 3 -> "Объединить одинаковые стаки";
-        case 6, 7 -> "Переключить страницу";
-        case 8 -> "Закрыть контейнер";
-        default -> "";
+    private String buttonLore(Player player, int slot) {
+        String key = switch (slot) {
+        case 1 -> "invtweaks.lore.sort";
+        case 2 -> "invtweaks.lore.columns";
+        case 3 -> "invtweaks.lore.stack";
+        case 6, 7 -> "invtweaks.lore.page";
+        case 8 -> "invtweaks.lore.close";
+        default -> "invtweaks.lore.default";
         };
+        return player == null ? languageService.tr(Language.EN, key) : languageService.tr(player, key);
     }
+
 }
