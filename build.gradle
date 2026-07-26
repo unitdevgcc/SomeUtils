@@ -67,6 +67,7 @@ tasks.register('extractVanillaBlockTextures') {
 def wailaRuMap = layout.buildDirectory.file('generated/waila-ru.properties')
 
 tasks.register('generateWailaRussianMap', Exec) {
+    dependsOn tasks.named('extractVanillaBlockTextures')
     inputs.file(russianLanguageFile)
     inputs.file(file('tools/generate_waila_russian_map.py'))
     outputs.file(wailaRuMap)
