@@ -27,8 +27,9 @@ dependencies {
 
 def vanillaClientUrl = 'https://piston-data.mojang.com/v1/objects/ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd/client.jar'
 def vanillaClientJar = layout.projectDirectory.file('.cache/minecraft-client-1.21.11.jar')
-def russianLanguageFile = layout.projectDirectory.file('.cache/ru_ru.json')
 def vanillaAssetsDir = layout.buildDirectory.dir('generated/vanilla-assets')
+def russianLanguageUrl = 'https://resources.download.minecraft.net/6c/6c8db9231984ebce2717d8a560956842f99ee63a'
+def russianLanguageFile = layout.projectDirectory.file('.cache/ru_ru.json')
 def wailaTextureMap = layout.buildDirectory.file('generated/waila-texture-map.properties')
 def wailaRenderedAssetsDir = layout.buildDirectory.dir('generated/waila-rendered-assets')
 
@@ -48,7 +49,6 @@ tasks.register('extractVanillaBlockTextures') {
             from zipTree(clientJar)
             include 'assets/minecraft/textures/block/**/*.png'
             include 'assets/minecraft/textures/item/**/*.png'
-            include 'assets/minecraft/lang/ru_ru.json'
             include 'assets/minecraft/textures/item/apple.png'
             include 'assets/minecraft/textures/item/heart_of_the_sea.png'
             include 'assets/minecraft/textures/item/diamond_pickaxe.png'
@@ -64,11 +64,24 @@ tasks.register('extractVanillaBlockTextures') {
     }
 }
 
+tasks.register('downloadRussianLanguage') {
+    outputs.file(russianLanguageFile)
+    doLast {
+        File languageFile = russianLanguageFile.asFile
+        if (!languageFile.exists()) {
+            languageFile.parentFile.mkdirs()
+            new URL(russianLanguageUrl).withInputStream { input ->
+                languageFile.withOutputStream { output -> output << input }
+            }
+        }
+    }
+}
+
 def wailaRuMap = layout.buildDirectory.file('generated/waila-ru.properties')
 
 tasks.register('generateWailaRussianMap', Exec) {
-    dependsOn tasks.named('extractVanillaBlockTextures')
-    inputs.file(russianLanguageFile)
+    dependsOn tasks.named('downloadRussianLanguage')
+    inputs.file(russianLanguageFile).optional()
     inputs.file(file('tools/generate_waila_russian_map.py'))
     outputs.file(wailaRuMap)
     commandLine 'python3', file('tools/generate_waila_russian_map.py').absolutePath,
