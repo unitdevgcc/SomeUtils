@@ -1,0 +1,83 @@
+package dev.c0redev.someutils.jade;
+
+import dev.c0redev.someutils.config.PluginConfig;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.entity.AbstractHorse;
+import org.bukkit.entity.Ageable;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Villager;
+import org.bukkit.potion.PotionEffect;
+
+public final class EntityDataProvider {
+
+    private EntityDataProvider() {
+    }
+
+    public static TargetInfo getEntityInfo(Entity entity, PluginConfig cfg) {
+        if (entity == null) {
+            return TargetInfo.empty();
+        }
+
+        String name = entity.customName() != null
+                ? net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(entity.customName())
+                : entity.getName();
+        StringBuilder subtitle = new StringBuilder();
+        StringBuilder detail = new StringBuilder();
+
+        if (entity instanceof LivingEntity living) {
+            if (cfg.isShowHealth()) {
+                double health = living.getHealth();
+                double max = maxHealth(living);
+                append(subtitle, "Health: " + format(health) + "/" + format(max));
+            }
+
+            if (cfg.isShowPotions() && !living.getActivePotionEffects().isEmpty()) {
+                StringBuilder potions = new StringBuilder("Potions:");
+                for (PotionEffect effect : living.getActivePotionEffects()) {
+                    potions.append(' ').append(effect.getType().getKey().getKey());
+                }
+                append(detail, potions.toString());
+            }
+        }
+
+        if (entity instanceof Ageable ageable && !ageable.isAdult()) {
+            append(subtitle, "Baby");
+        }
+
+        if (cfg.isShowVillager() && entity instanceof Villager villager) {
+            append(subtitle, villager.getProfession().getKey().getKey() + " L" + villager.getVillagerLevel());
+        }
+
+        if (cfg.isShowHorse() && entity instanceof AbstractHorse horse) {
+            double speed = attr(horse, Attribute.MOVEMENT_SPEED) * 42.16;
+            double jump = attr(horse, Attribute.JUMP_STRENGTH);
+            double jumpBlocks = -0.1817584952 * jump * jump * jump + 3.689713992 * jump * jump + 2.128599134 * jump - 0.343930367;
+            append(detail, "Speed: " + format(speed) + " m/s | Jump: " + format(jumpBlocks) + " m");
+        }
+
+        return TargetInfo.ofEntity(entity, name, subtitle.toString(), detail.toString());
+    }
+
+    private static double maxHealth(LivingEntity living) {
+        AttributeInstance inst = living.getAttribute(Attribute.MAX_HEALTH);
+        return inst == null ? living.getHealth() : inst.getValue();
+    }
+
+    private static double attr(LivingEntity living, Attribute attribute) {
+        AttributeInstance inst = living.getAttribute(attribute);
+        return inst == null ? 0.0 : inst.getValue();
+    }
+
+    private static void append(StringBuilder sb, String part) {
+        if (sb.length() > 0) {
+            sb.append(" §8| ");
+        }
+        sb.append(part);
+    }
+
+    private static String format(double value) {
+        return String.format("%.1f", value);
+    }
+}

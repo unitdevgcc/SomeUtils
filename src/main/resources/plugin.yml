@@ -1,0 +1,17 @@
+name: SomeUtils
+version: ${version}
+main: dev.c0redev.someutils.SomeUtilsPlugin
+api-version: '1.21'
+softdepend: [packetevents]
+author: c0redev
+description: utilities and fun
+commands:
+  someutils:
+    description: SomeUtils control
+    usage: /someutils [sort|jade|refill|pack|reload|help]
+    aliases: [su]
+permissions:
+  someutils.use:
+    default: true
+  someutils.admin:
+    default: op

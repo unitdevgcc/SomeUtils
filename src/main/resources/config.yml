@@ -1,0 +1,45 @@
+invtweaks:
+  enabled: true
+  gui-controls: true
+  refill-enabled: true
+  sort-player-inventory: true
+  sort-hotbar: false
+  # even: страницы делятся поровну (двойной сундук 54 слота -> 2 страницы по 27, по половине)
+  # full: страницы заполняются до отказа (45 слотов на страницу, следующая - остаток)
+  page-mode: even
+  categories:
+    - weapons
+    - armor
+    - tools
+    - food
+    - ores
+    - redstone
+    - blocks
+    - other
+
+jade:
+  enabled: true
+  interval-ticks: 2
+  range: 6.0
+  vertical-offset-bars: 1
+  show-blocks: true
+  show-entities: true
+  show-health: true
+  show-tool: true
+  show-growth: true
+  show-container: true
+  show-redstone: true
+  show-furnace: true
+  show-beehive: true
+  show-villager: true
+  show-horse: true
+  show-potions: true
+
+resource-pack:
+  enabled: true
+  vanilla-text-shader: true
+  bind-address: "0.0.0.0"
+  http-port: 8089
+  public-url: ""
+  force: false
+  prompt: "SomeUtils packkk"
