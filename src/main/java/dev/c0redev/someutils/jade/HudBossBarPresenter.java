@@ -16,74 +16,62 @@ final class HudBossBarPresenter {
 
     private static final int MAX_ROWS = 4;
     private static final int MAX_OFFSET_ROWS = 4;
+    private static final int MAX_GAP_BARS = 2;
+    private static final int MAX_SLOTS = MAX_OFFSET_ROWS + MAX_ROWS * (1 + MAX_GAP_BARS);
 
-    private final UUID[] ids = new UUID[MAX_ROWS + MAX_OFFSET_ROWS];
+    private final UUID[] ids = new UUID[MAX_SLOTS];
     private final HudLineBuilder lineBuilder;
-    private int active;
-    private int offsetRows;
+    private int usedSlots;
 
     HudBossBarPresenter(Player player, HudLineBuilder lineBuilder) {
         this.lineBuilder = lineBuilder;
-        for (int row = 0; row < ids.length; row++) {
-            ids[row] = UUID.nameUUIDFromBytes(("someutils:waila:" + player.getUniqueId() + ':' + row)
+        for (int slot = 0; slot < ids.length; slot++) {
+            ids[slot] = UUID.nameUUIDFromBytes(("someutils:waila:" + player.getUniqueId() + ':' + slot)
                     .getBytes(StandardCharsets.UTF_8));
         }
     }
 
-    void update(Player player, List<HudLine> lines, boolean packLoaded, int requestedOffset) {
-        if (active > 0 && offsetRows != requestedOffset) {
-            for (int row = 0; row < active; row++) {
-                send(player, new WrapperPlayServerBossBar(ids[row + offsetRows], WrapperPlayServerBossBar.Action.REMOVE));
-            }
-            active = 0;
-        }
-        while (offsetRows < requestedOffset) {
-            addSpacer(player, offsetRows++);
-        }
-        while (offsetRows > requestedOffset) {
-            send(player, new WrapperPlayServerBossBar(ids[--offsetRows], WrapperPlayServerBossBar.Action.REMOVE));
+    void update(Player player, List<HudLine> lines, boolean packLoaded, int requestedOffset, int lineGapBars) {
+        int slot = 0;
+        for (int spacer = 0; spacer < requestedOffset; spacer++) {
+            sendSlot(player, slot++, Component.empty(), slot <= usedSlots);
         }
         for (int row = 0; row < lines.size(); row++) {
-            Component title = lineBuilder.decorate(lines.get(row), packLoaded);
-            if (row >= active) {
-                WrapperPlayServerBossBar packet = new WrapperPlayServerBossBar(ids[row + offsetRows], WrapperPlayServerBossBar.Action.ADD);
-                packet.setTitle(title);
-                packet.setHealth(0.0f);
-                packet.setColor(BossBar.Color.WHITE);
-                packet.setOverlay(BossBar.Overlay.PROGRESS);
-                packet.setFlags(EnumSet.noneOf(BossBar.Flag.class));
-                send(player, packet);
-            } else {
-                WrapperPlayServerBossBar packet = new WrapperPlayServerBossBar(ids[row + offsetRows], WrapperPlayServerBossBar.Action.UPDATE_TITLE);
-                packet.setTitle(title);
-                send(player, packet);
+            if (row > 0) {
+                for (int gap = 0; gap < lineGapBars; gap++) {
+                    sendSlot(player, slot++, Component.empty(), slot <= usedSlots);
+                }
             }
+            Component title = lineBuilder.decorate(lines.get(row), packLoaded);
+            sendSlot(player, slot++, title, slot <= usedSlots);
         }
-        for (int row = lines.size(); row < active; row++) {
-            send(player, new WrapperPlayServerBossBar(ids[row + offsetRows], WrapperPlayServerBossBar.Action.REMOVE));
+        for (int leftover = slot; leftover < usedSlots; leftover++) {
+            send(player, new WrapperPlayServerBossBar(ids[leftover], WrapperPlayServerBossBar.Action.REMOVE));
         }
-        active = lines.size();
+        usedSlots = slot;
     }
 
     void remove(Player player) {
-        for (int row = 0; row < active; row++) {
-            send(player, new WrapperPlayServerBossBar(ids[row + offsetRows], WrapperPlayServerBossBar.Action.REMOVE));
+        for (int slot = 0; slot < usedSlots; slot++) {
+            send(player, new WrapperPlayServerBossBar(ids[slot], WrapperPlayServerBossBar.Action.REMOVE));
         }
-        for (int row = 0; row < offsetRows; row++) {
-            send(player, new WrapperPlayServerBossBar(ids[row], WrapperPlayServerBossBar.Action.REMOVE));
-        }
-        active = 0;
-        offsetRows = 0;
+        usedSlots = 0;
     }
 
-    private void addSpacer(Player player, int row) {
-        WrapperPlayServerBossBar spacer = new WrapperPlayServerBossBar(ids[row], WrapperPlayServerBossBar.Action.ADD);
-        spacer.setTitle(Component.empty());
-        spacer.setHealth(0.0f);
-        spacer.setColor(BossBar.Color.WHITE);
-        spacer.setOverlay(BossBar.Overlay.PROGRESS);
-        spacer.setFlags(EnumSet.noneOf(BossBar.Flag.class));
-        send(player, spacer);
+    private void sendSlot(Player player, int slot, Component title, boolean alreadyActive) {
+        if (alreadyActive) {
+            WrapperPlayServerBossBar packet = new WrapperPlayServerBossBar(ids[slot], WrapperPlayServerBossBar.Action.UPDATE_TITLE);
+            packet.setTitle(title);
+            send(player, packet);
+        } else {
+            WrapperPlayServerBossBar packet = new WrapperPlayServerBossBar(ids[slot], WrapperPlayServerBossBar.Action.ADD);
+            packet.setTitle(title);
+            packet.setHealth(0.0f);
+            packet.setColor(BossBar.Color.WHITE);
+            packet.setOverlay(BossBar.Overlay.PROGRESS);
+            packet.setFlags(EnumSet.noneOf(BossBar.Flag.class));
+            send(player, packet);
+        }
     }
 
     private static void send(Player player, WrapperPlayServerBossBar packet) {

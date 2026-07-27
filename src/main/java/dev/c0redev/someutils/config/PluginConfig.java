@@ -18,6 +18,7 @@ public final class PluginConfig {
     private int jadeIntervalTicks;
     private double jadeRange;
     private int jadeVerticalOffsetBars;
+    private int jadeLineGapBars;
     private boolean showBlocks;
     private boolean showEntities;
     private boolean showHealth;
@@ -30,6 +31,15 @@ public final class PluginConfig {
     private boolean showVillager;
     private boolean showHorse;
     private boolean showPotions;
+
+    private boolean damageIndicatorEnabled;
+    private boolean damageIndicatorShowPlayers;
+    private boolean damageIndicatorShowMobs;
+    private int damageIndicatorDurationTicks;
+    private double damageIndicatorRiseHeight;
+    private double damageIndicatorCritScale;
+    private String damageIndicatorNormalColor;
+    private String damageIndicatorCritColor;
 
     private boolean resourcePackEnabled;
     private boolean vanillaTextShader;
@@ -57,6 +67,7 @@ public final class PluginConfig {
         jadeIntervalTicks = Math.max(1, cfg.getInt("jade.interval-ticks", 2));
         jadeRange = Math.max(1.0, cfg.getDouble("jade.range", 6.0));
         jadeVerticalOffsetBars = Math.max(0, Math.min(4, cfg.getInt("jade.vertical-offset-bars", 1)));
+        jadeLineGapBars = Math.max(0, Math.min(2, cfg.getInt("jade.line-gap-bars", 0)));
         showBlocks = cfg.getBoolean("jade.show-blocks", true);
         showEntities = cfg.getBoolean("jade.show-entities", true);
         showHealth = cfg.getBoolean("jade.show-health", true);
@@ -69,6 +80,15 @@ public final class PluginConfig {
         showVillager = cfg.getBoolean("jade.show-villager", true);
         showHorse = cfg.getBoolean("jade.show-horse", true);
         showPotions = cfg.getBoolean("jade.show-potions", true);
+
+        damageIndicatorEnabled = cfg.getBoolean("damage-indicator.enabled", true);
+        damageIndicatorShowPlayers = cfg.getBoolean("damage-indicator.show-for-players", true);
+        damageIndicatorShowMobs = cfg.getBoolean("damage-indicator.show-for-mobs", true);
+        damageIndicatorDurationTicks = Math.max(5, cfg.getInt("damage-indicator.duration-ticks", 20));
+        damageIndicatorRiseHeight = Math.max(0.1, cfg.getDouble("damage-indicator.rise-height", 1.2));
+        damageIndicatorCritScale = Math.max(1.0, cfg.getDouble("damage-indicator.crit-scale", 1.5));
+        damageIndicatorNormalColor = cfg.getString("damage-indicator.normal-color", "#ffe14d");
+        damageIndicatorCritColor = cfg.getString("damage-indicator.crit-color", "#ff4d4d");
 
         resourcePackEnabled = cfg.getBoolean("resource-pack.enabled", true);
         vanillaTextShader = cfg.getBoolean("resource-pack.vanilla-text-shader", true);
@@ -90,6 +110,7 @@ public final class PluginConfig {
     public int getJadeIntervalTicks() { return jadeIntervalTicks; }
     public double getJadeRange() { return jadeRange; }
     public int getJadeVerticalOffsetBars() { return jadeVerticalOffsetBars; }
+    public int getJadeLineGapBars() { return jadeLineGapBars; }
     public boolean isShowBlocks() { return showBlocks; }
     public boolean isShowEntities() { return showEntities; }
     public boolean isShowHealth() { return showHealth; }
@@ -102,6 +123,15 @@ public final class PluginConfig {
     public boolean isShowVillager() { return showVillager; }
     public boolean isShowHorse() { return showHorse; }
     public boolean isShowPotions() { return showPotions; }
+
+    public boolean isDamageIndicatorEnabled() { return damageIndicatorEnabled; }
+    public boolean isDamageIndicatorShowPlayers() { return damageIndicatorShowPlayers; }
+    public boolean isDamageIndicatorShowMobs() { return damageIndicatorShowMobs; }
+    public int getDamageIndicatorDurationTicks() { return damageIndicatorDurationTicks; }
+    public double getDamageIndicatorRiseHeight() { return damageIndicatorRiseHeight; }
+    public double getDamageIndicatorCritScale() { return damageIndicatorCritScale; }
+    public String getDamageIndicatorNormalColor() { return damageIndicatorNormalColor; }
+    public String getDamageIndicatorCritColor() { return damageIndicatorCritColor; }
 
     public boolean isResourcePackEnabled() { return resourcePackEnabled; }
     public boolean isVanillaTextShader() { return vanillaTextShader; }

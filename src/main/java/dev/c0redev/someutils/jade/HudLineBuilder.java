@@ -16,7 +16,7 @@ final class HudLineBuilder {
 
     private static final int MAX_ROWS = 4;
     private static final int ICON_ADVANCE = 17;
-    private static final int ICON_TEXT_GAP = 4;
+    private static final String ICON_TEXT_GAP = "  ";
     private static final int PANEL_RIGHT_PADDING = 4;
     private static final int PANEL_PART_WIDTH = 10;
 
@@ -26,23 +26,24 @@ final class HudLineBuilder {
         this.plugin = plugin;
     }
 
-    List<HudLine> buildLines(Player player, TargetInfo target, boolean packLoaded) {
+    List<HudLine> buildLines(Player player, TargetInfo target, boolean packLoaded, Float breakProgress) {
         List<HudLine> lines = new ArrayList<>(MAX_ROWS);
-        int iconWidth = packLoaded ? ICON_ADVANCE + ICON_TEXT_GAP : 0;
+        String gap = packLoaded ? ICON_TEXT_GAP : "";
+        int iconWidth = packLoaded ? ICON_ADVANCE + HudFontMetrics.estimateWidth(ICON_TEXT_GAP) : 0;
 
         Component icon = packLoaded
                 ? Component.text(target.getType() == TargetInfo.Type.BLOCK ? blockGlyph(target) : ENTITY_ICON, NamedTextColor.WHITE).font(HUD_FONT)
                 : Component.empty();
         String title = plugin.getLanguageService().localizeTargetTitle(player, target);
         lines.add(new HudLine(
-                Component.empty().append(icon).append(Component.text(" " + title, NamedTextColor.WHITE).font(DEFAULT_FONT)),
+                Component.empty().append(icon).append(Component.text(gap + title, NamedTextColor.WHITE).font(DEFAULT_FONT)),
                 iconWidth + HudFontMetrics.estimateWidth(title)));
 
         if (!target.getSubtitle().isEmpty()) {
             String text = plugin.getLanguageService().localizeHud(player, target.getSubtitle());
             Component marker = packLoaded ? statusIcon(target.getSubtitle()) : Component.empty();
             lines.add(new HudLine(
-                    Component.empty().append(marker).append(Component.text(" " + text, NamedTextColor.GRAY).font(DEFAULT_FONT)),
+                    Component.empty().append(marker).append(Component.text(gap + text, NamedTextColor.GRAY).font(DEFAULT_FONT)),
                     iconWidth + HudFontMetrics.estimateWidth(text)));
         }
 
@@ -50,8 +51,21 @@ final class HudLineBuilder {
             String text = plugin.getLanguageService().tr(player, "tool") + ": " + target.getTool().getLabel();
             Component marker = packLoaded ? Component.text(toolGlyph(target.getTool()), NamedTextColor.YELLOW).font(HUD_FONT) : Component.empty();
             lines.add(new HudLine(
-                    Component.empty().append(marker).append(Component.text(" " + text, NamedTextColor.YELLOW).font(DEFAULT_FONT)),
+                    Component.empty().append(marker).append(Component.text(gap + text, NamedTextColor.YELLOW).font(DEFAULT_FONT)),
                     iconWidth + HudFontMetrics.estimateWidth(text)));
+        }
+
+        if (breakProgress != null && lines.size() < MAX_ROWS) {
+            if (packLoaded) {
+                Component bar = Component.text(breakProgressGlyph(breakProgress), NamedTextColor.WHITE).font(HUD_FONT);
+                lines.add(new HudLine(bar, BREAK_PROGRESS_WIDTH));
+            } else {
+                String label = plugin.getLanguageService().tr(player, "break.progress");
+                int percent = Math.round(breakProgress * 100.0f);
+                String text = label + " " + percent + "%";
+                lines.add(new HudLine(Component.text(text, NamedTextColor.YELLOW).font(DEFAULT_FONT),
+                        HudFontMetrics.estimateWidth(text)));
+            }
         }
 
         if (!target.getDetail().isEmpty() && lines.size() < MAX_ROWS) {

@@ -4,6 +4,7 @@ import dev.c0redev.someutils.command.SomeUtilsCommand;
 import dev.c0redev.someutils.config.PluginConfig;
 import dev.c0redev.someutils.invtweaks.SortContainerGui;
 import dev.c0redev.someutils.invtweaks.RefillListener;
+import dev.c0redev.someutils.jade.DamageIndicatorManager;
 import dev.c0redev.someutils.jade.JadeManager;
 import dev.c0redev.someutils.lang.LanguageService;
 import dev.c0redev.someutils.pack.ResourcePackServer;
@@ -44,6 +45,8 @@ public final class SomeUtilsPlugin extends JavaPlugin {
         if (pluginConfig.isJadeEnabled()) {
             jadeManager.start();
         }
+
+        getServer().getPluginManager().registerEvents(new DamageIndicatorManager(this), this);
 
         packServer = new ResourcePackServer(this);
         if (pluginConfig.isResourcePackEnabled()) {

@@ -25,6 +25,15 @@ final class HudGlyphs {
     static final String POWERED_ICON = "\uE00E";
     static final String UNPOWERED_ICON = "\uE00F";
     static final String CONTAINER_ICON = "\uE010";
+    static final String CRIT_ICON = "\uE01C";
+    static final int BREAK_PROGRESS_START = 0xE011;
+    static final int BREAK_PROGRESS_FRAMES = 21;
+    static final int BREAK_PROGRESS_WIDTH = 64;
+
+    static String breakProgressGlyph(float progress) {
+        int frame = Math.max(0, Math.min(BREAK_PROGRESS_FRAMES - 1, Math.round(progress * (BREAK_PROGRESS_FRAMES - 1))));
+        return new String(Character.toChars(BREAK_PROGRESS_START + frame));
+    }
 
     private HudGlyphs() {
     }

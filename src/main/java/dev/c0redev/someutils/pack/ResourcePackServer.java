@@ -14,7 +14,10 @@ import org.bukkit.Material;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -39,6 +42,14 @@ public final class ResourcePackServer implements Listener {
     private static final int BLOCK_GLYPH_START = 0xE100;
     private static final int TILE_SIZE = 16;
     private static final int ICON_DRAW_SIZE = 12;
+    private static final int BREAK_PROGRESS_START = 0xE011;
+    private static final int BREAK_PROGRESS_WIDTH = 64;
+    private static final int BREAK_PROGRESS_HEIGHT = 16;
+    private static final int BREAK_PROGRESS_PADDING_X = 1;
+    private static final int BREAK_PROGRESS_BAR_TOP = 2;
+    private static final int BREAK_PROGRESS_BAR_HEIGHT = 12;
+    private static final int BREAK_PROGRESS_FRAMES = 21;
+    private static final Font BREAK_PROGRESS_FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 7);
     private static final int ATLAS_COLUMNS = 32;
     private static final int MAX_PANEL_PARTS = 40;
 
@@ -193,6 +204,8 @@ public final class ResourcePackServer implements Listener {
             write(zip, "assets/someutils/textures/font/block_atlas.png", renderedAtlas != null ? renderedAtlas : blockAtlasPng());
             write(zip, "assets/someutils/textures/font/item_atlas.png", itemAtlasPng());
             write(zip, "assets/someutils/textures/font/status_atlas.png", statusAtlasPng());
+            write(zip, "assets/someutils/textures/font/crit_icon.png", critIconPng());
+            write(zip, "assets/someutils/textures/font/break_progress.png", breakProgressAtlasPng());
             writeGuiModels(zip);
             byte[] transparentBossBar = transparentPng(182, 5);
             for (String sprite : new String[]{
@@ -223,11 +236,21 @@ public final class ResourcePackServer implements Listener {
                 {
                   "providers": [
                     {"type":"bitmap","file":"someutils:font/status_atlas.png","ascent":10,"height":16,"chars":["\\uE008\\uE009\\uE00E\\uE00F\\uE010"]},
+                    {"type":"bitmap","file":"someutils:font/crit_icon.png","ascent":8,"height":10,"chars":["\\uE01C"]},
                     {"type":"bitmap","file":"someutils:font/item_atlas.png","ascent":10,"height":16,"chars":["\\uE00A\\uE00B\\uE00C\\uE00D"]},
+                    {"type":"bitmap","file":"someutils:font/break_progress.png","ascent":10,"height":16,"chars":[%s]},
                     {"type":"bitmap","file":"someutils:font/block_atlas.png","ascent":10,"height":16,"chars":%s}
                   ]
                 }
-                """.formatted(blockGlyphRows());
+                """.formatted(breakProgressGlyphRow(), blockGlyphRows());
+    }
+
+    private String breakProgressGlyphRow() {
+        StringBuilder row = new StringBuilder("\"");
+        for (int frame = 0; frame < BREAK_PROGRESS_FRAMES; frame++) {
+            row.append(Character.toChars(BREAK_PROGRESS_START + frame));
+        }
+        return row.append('"').toString();
     }
 
     private String wailaFont() {
@@ -342,6 +365,85 @@ public final class ResourcePackServer implements Listener {
         drawChestIcon(g, TILE_SIZE * 4);
         g.dispose();
         return png(atlas);
+    }
+
+    private byte[] breakProgressAtlasPng() throws Exception {
+        BufferedImage atlas = new BufferedImage(BREAK_PROGRESS_WIDTH * BREAK_PROGRESS_FRAMES, BREAK_PROGRESS_HEIGHT, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = atlas.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        int trackWidth = BREAK_PROGRESS_WIDTH - BREAK_PROGRESS_PADDING_X * 2;
+        int fillWidth = trackWidth - 2;
+        int bottom = BREAK_PROGRESS_BAR_TOP + BREAK_PROGRESS_BAR_HEIGHT - 1;
+        for (int frame = 0; frame < BREAK_PROGRESS_FRAMES; frame++) {
+            int x = frame * BREAK_PROGRESS_WIDTH + BREAK_PROGRESS_PADDING_X;
+            float ratio = frame / (float) (BREAK_PROGRESS_FRAMES - 1);
+            int filled = Math.round(ratio * fillWidth);
+
+            g.setColor(new Color(0, 0, 0, 90));
+            g.fillRect(x + 1, bottom + 1, trackWidth - 1, 1);
+            g.setColor(new Color(12, 17, 18, 240));
+            g.fillRect(x + 1, BREAK_PROGRESS_BAR_TOP + 1, trackWidth - 2, BREAK_PROGRESS_BAR_HEIGHT - 2);
+
+            if (filled > 0) {
+                Color head = gradient(ratio);
+                g.setColor(head.darker());
+                g.fillRect(x + 1, BREAK_PROGRESS_BAR_TOP + 1, filled, BREAK_PROGRESS_BAR_HEIGHT - 2);
+                g.setColor(head);
+                g.fillRect(x + 1, BREAK_PROGRESS_BAR_TOP + 1, filled, BREAK_PROGRESS_BAR_HEIGHT - 4);
+                g.setColor(new Color(255, 255, 255, 60));
+                g.fillRect(x + 1, BREAK_PROGRESS_BAR_TOP + 1, filled, 1);
+                if (filled < fillWidth) {
+                    g.setColor(new Color(255, 255, 255, 150));
+                    g.fillRect(x + filled, BREAK_PROGRESS_BAR_TOP + 1, 1, BREAK_PROGRESS_BAR_HEIGHT - 2);
+                }
+            }
+
+            g.setColor(new Color(78, 100, 92, 255));
+            g.drawRect(x, BREAK_PROGRESS_BAR_TOP, trackWidth - 1, BREAK_PROGRESS_BAR_HEIGHT - 1);
+
+            String percent = Math.round(ratio * 100.0f) + "%";
+            g.setFont(BREAK_PROGRESS_FONT);
+            FontMetrics fm = g.getFontMetrics();
+            int textX = x + (trackWidth - fm.stringWidth(percent)) / 2;
+            int textY = BREAK_PROGRESS_BAR_TOP + (BREAK_PROGRESS_BAR_HEIGHT + fm.getAscent() - fm.getDescent()) / 2 - 1;
+            g.setColor(new Color(0, 0, 0, 200));
+            g.drawString(percent, textX + 1, textY + 1);
+            g.setColor(Color.WHITE);
+            g.drawString(percent, textX, textY);
+        }
+        g.dispose();
+        return png(atlas);
+    }
+
+    private static Color gradient(float ratio) {
+        Color low = new Color(203, 78, 62);
+        Color mid = new Color(214, 168, 65);
+        Color high = new Color(132, 187, 99);
+        return ratio < 0.5f
+                ? lerp(low, mid, ratio / 0.5f)
+                : lerp(mid, high, (ratio - 0.5f) / 0.5f);
+    }
+
+    private static Color lerp(Color from, Color to, float t) {
+        return new Color(
+                Math.round(from.getRed() + (to.getRed() - from.getRed()) * t),
+                Math.round(from.getGreen() + (to.getGreen() - from.getGreen()) * t),
+                Math.round(from.getBlue() + (to.getBlue() - from.getBlue()) * t));
+    }
+
+    private byte[] critIconPng() throws Exception {
+        BufferedImage icon = new BufferedImage(10, 10, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = icon.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        int[] xs = {6, 3, 5, 2, 8, 5, 7};
+        int[] ys = {0, 5, 5, 10, 4, 4, 0};
+        g.setColor(new Color(255, 210, 60, 255));
+        g.fillPolygon(xs, ys, xs.length);
+        g.setColor(new Color(255, 255, 220, 255));
+        g.drawPolygon(xs, ys, xs.length);
+        g.dispose();
+        return png(icon);
     }
 
     private static void drawPlayerIcon(Graphics2D g, int x) {
