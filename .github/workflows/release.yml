@@ -21,11 +21,7 @@ jobs:
       - name: Build
         env:
           SOMEUTILS_VERSION: ${{ github.ref_name }}
-        run: |
-          export JAVA_HOME="$JAVA_HOME_21_X64"
-          export PATH="$JAVA_HOME/bin:$PATH"
-          java -version
-          ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" build --no-daemon
+        run: java -version && ./gradlew build --no-daemon
 
       - name: Get version
         id: version
