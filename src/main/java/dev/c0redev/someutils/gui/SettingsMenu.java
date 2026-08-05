@@ -83,7 +83,7 @@ public final class SettingsMenu implements Listener {
         inventory.setItem(SLOT_JADE_COMPACT, armorOption("Jade compact", plugin.getPluginConfig().isJadeCompact()));
         inventory.setItem(SLOT_JADE_ICONS, armorOption("Jade icons", plugin.getPluginConfig().isJadeShowIcons()));
         inventory.setItem(SLOT_JADE_DETAILS, armorOption("Jade details", plugin.getPluginConfig().isJadeShowDetails()));
-        inventory.setItem(SLOT_JADE_SPACING, armorOption("Jade spacing", plugin.getPluginConfig().getJadeLineGapBars() > 0));
+        inventory.setItem(SLOT_JADE_SPACING, armorOption("Jade spacing (full)", plugin.getPluginConfig().getJadeLineGapBars() > 0));
         inventory.setItem(SLOT_JADE_OFFSET, jadeOffset());
 
         inventory.setItem(SLOT_CLOSE, closeButton(player));
@@ -296,7 +296,11 @@ public final class SettingsMenu implements Listener {
 
     private void reloadJade() {
         plugin.getPluginConfig().reload();
-        plugin.getJadeManager().start();
+        if (plugin.getPluginConfig().isJadeEnabled()) {
+            plugin.getJadeManager().start();
+        } else {
+            plugin.getJadeManager().stop();
+        }
     }
 
     private ItemStack closeButton(Player player) {

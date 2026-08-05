@@ -12,6 +12,7 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 public final class ArmorHudManager implements Listener {
 
@@ -87,7 +88,7 @@ public final class ArmorHudManager implements Listener {
             presenter.update(player, ArmorSnapshot.capture(player), cfg.isArmorHudCompact(),
                     cfg.getArmorHudPulseThreshold(), cfg.isArmorHudShowOffhand());
         } catch (RuntimeException e) {
-            plugin.getLogger().warning("Armor HUD update failed for " + player.getName() + ": " + e.getMessage());
+            plugin.getLogger().log(Level.WARNING, "Armor HUD update failed for " + player.getName(), e);
             hide(player);
         }
     }
