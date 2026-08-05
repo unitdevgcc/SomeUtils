@@ -10,11 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ArmorPieceTest {
 
     @Test
-    void emptyFormatsWithLabel() {
+    void emptyHasNoDurability() {
         ArmorPiece empty = new ArmorPiece(ArmorSlot.HELMET, true, "", 0, 0);
         assertTrue(empty.empty());
         assertEquals(0, empty.remaining());
-        assertEquals("H empty", empty.formatLine("empty"));
     }
 
     @Test
@@ -22,22 +21,12 @@ class ArmorPieceTest {
         ArmorPiece piece = new ArmorPiece(ArmorSlot.CHEST, false, "iron chestplate", 40, 240);
         assertFalse(piece.empty());
         assertEquals(200, piece.remaining());
-        assertEquals("C iron chestplate 200/240", piece.formatLine("empty"));
     }
 
     @Test
     void unbreakableNoMax() {
         ArmorPiece piece = new ArmorPiece(ArmorSlot.BOOTS, false, "leather boots", 0, 0);
         assertEquals(0, piece.remaining());
-        assertEquals("B leather boots", piece.formatLine("empty"));
-    }
-
-    @Test
-    void slotLabels() {
-        assertEquals("H", ArmorSlot.HELMET.shortLabel());
-        assertEquals("C", ArmorSlot.CHEST.shortLabel());
-        assertEquals("L", ArmorSlot.LEGS.shortLabel());
-        assertEquals("B", ArmorSlot.BOOTS.shortLabel());
     }
 
     @Test

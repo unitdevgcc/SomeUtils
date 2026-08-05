@@ -38,6 +38,11 @@ public final class SettingsMenu implements Listener {
     private static final int SLOT_ARMOR_COMPACT = 28;
     private static final int SLOT_ARMOR_PULSE = 30;
     private static final int SLOT_ARMOR_OFFHAND = 32;
+    private static final int SLOT_JADE_COMPACT = 36;
+    private static final int SLOT_JADE_ICONS = 37;
+    private static final int SLOT_JADE_DETAILS = 38;
+    private static final int SLOT_JADE_SPACING = 39;
+    private static final int SLOT_JADE_OFFSET = 41;
     private static final int SLOT_CLOSE = 40;
 
     private final SomeUtilsPlugin plugin;
@@ -75,6 +80,11 @@ public final class SettingsMenu implements Listener {
         inventory.setItem(SLOT_ARMOR_COMPACT, armorOption("Compact", plugin.getPluginConfig().isArmorHudCompact()));
         inventory.setItem(SLOT_ARMOR_PULSE, armorOption("Critical cracks", plugin.getPluginConfig().getArmorHudPulseThreshold() > 0));
         inventory.setItem(SLOT_ARMOR_OFFHAND, armorOption("Offhand", plugin.getPluginConfig().isArmorHudShowOffhand()));
+        inventory.setItem(SLOT_JADE_COMPACT, armorOption("Jade compact", plugin.getPluginConfig().isJadeCompact()));
+        inventory.setItem(SLOT_JADE_ICONS, armorOption("Jade icons", plugin.getPluginConfig().isJadeShowIcons()));
+        inventory.setItem(SLOT_JADE_DETAILS, armorOption("Jade details", plugin.getPluginConfig().isJadeShowDetails()));
+        inventory.setItem(SLOT_JADE_SPACING, armorOption("Jade spacing", plugin.getPluginConfig().getJadeLineGapBars() > 0));
+        inventory.setItem(SLOT_JADE_OFFSET, jadeOffset());
 
         inventory.setItem(SLOT_CLOSE, closeButton(player));
 
@@ -105,6 +115,11 @@ public final class SettingsMenu implements Listener {
         case SLOT_ARMOR_COMPACT -> toggleArmorConfig(player, "armor-hud.compact");
         case SLOT_ARMOR_PULSE -> togglePulse(player);
         case SLOT_ARMOR_OFFHAND -> toggleArmorConfig(player, "armor-hud.show-offhand");
+        case SLOT_JADE_COMPACT -> toggleJadeConfig(player, "jade.compact");
+        case SLOT_JADE_ICONS -> toggleJadeConfig(player, "jade.show-icons");
+        case SLOT_JADE_DETAILS -> toggleJadeConfig(player, "jade.show-details");
+        case SLOT_JADE_SPACING -> toggleJadeSpacing(player);
+        case SLOT_JADE_OFFSET -> cycleJadeOffset(player);
         case SLOT_CLOSE -> player.closeInventory();
         default -> {
         }
@@ -180,7 +195,7 @@ public final class SettingsMenu implements Listener {
         String key = "armor-hud.border." + channel;
         String color = plugin.getConfig().getString(key, "#84BB63");
         TextColor exact = exactColor(color);
-        Component name = Component.text("Border " + channel, exact, TextDecoration.BOLD);
+        Component name = Component.text("HUD " + channel, exact, TextDecoration.BOLD);
         List<Component> lore = List.of(
                 Component.text("■  " + color.toUpperCase(java.util.Locale.ROOT), exact),
                 Component.text("RGB " + rgb(color), NamedTextColor.GRAY),
@@ -248,6 +263,40 @@ public final class SettingsMenu implements Listener {
         plugin.saveConfig();
         plugin.reloadAll();
         open(player);
+    }
+
+    private void toggleJadeConfig(Player player, String path) {
+        plugin.getConfig().set(path, !plugin.getConfig().getBoolean(path, true));
+        plugin.saveConfig();
+        reloadJade();
+        open(player);
+    }
+
+    private void toggleJadeSpacing(Player player) {
+        plugin.getConfig().set("jade.line-gap-bars", plugin.getPluginConfig().getJadeLineGapBars() > 0 ? 0 : 1);
+        plugin.saveConfig();
+        reloadJade();
+        open(player);
+    }
+
+    private ItemStack jadeOffset() {
+        int value = plugin.getPluginConfig().getJadeVerticalOffsetBars();
+        return customItem(Material.COMPASS, "jade_on",
+                Component.text("Jade vertical: " + value, NamedTextColor.AQUA, TextDecoration.BOLD),
+                List.of(Component.text("Click: 0-4", NamedTextColor.DARK_GRAY)));
+    }
+
+    private void cycleJadeOffset(Player player) {
+        int value = (plugin.getPluginConfig().getJadeVerticalOffsetBars() + 1) % 5;
+        plugin.getConfig().set("jade.vertical-offset-bars", value);
+        plugin.saveConfig();
+        reloadJade();
+        open(player);
+    }
+
+    private void reloadJade() {
+        plugin.getPluginConfig().reload();
+        plugin.getJadeManager().start();
     }
 
     private ItemStack closeButton(Player player) {

@@ -125,7 +125,7 @@ public final class JadeManager implements Listener {
         }
         presenter.update(player, lines, packLoaded,
                 plugin.getPluginConfig().getJadeVerticalOffsetBars(),
-                plugin.getPluginConfig().getJadeLineGapBars());
+                plugin.getPluginConfig().isJadeCompact() ? 0 : plugin.getPluginConfig().getJadeLineGapBars());
     }
 
     private HudPresenter createPresenter(Player player) {

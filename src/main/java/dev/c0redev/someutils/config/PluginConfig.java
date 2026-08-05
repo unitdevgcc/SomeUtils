@@ -19,6 +19,9 @@ public final class PluginConfig {
     private double jadeRange;
     private int jadeVerticalOffsetBars;
     private int jadeLineGapBars;
+    private boolean jadeCompact;
+    private boolean jadeShowIcons;
+    private boolean jadeShowDetails;
     private boolean showBlocks;
     private boolean showEntities;
     private boolean showHealth;
@@ -33,9 +36,7 @@ public final class PluginConfig {
     private boolean showPotions;
 
     private boolean armorHudEnabled;
-    private boolean armorHudTextDisplay;
     private int armorHudIntervalTicks;
-    private boolean armorHudRight;
     private boolean armorHudCompact;
     private int armorHudPulseThreshold;
     private boolean armorHudShowOffhand;
@@ -82,6 +83,9 @@ public final class PluginConfig {
         jadeRange = Math.max(1.0, cfg.getDouble("jade.range", 6.0));
         jadeVerticalOffsetBars = Math.max(0, Math.min(4, cfg.getInt("jade.vertical-offset-bars", 1)));
         jadeLineGapBars = Math.max(0, Math.min(2, cfg.getInt("jade.line-gap-bars", 0)));
+        jadeCompact = cfg.getBoolean("jade.compact", true);
+        jadeShowIcons = cfg.getBoolean("jade.show-icons", true);
+        jadeShowDetails = cfg.getBoolean("jade.show-details", true);
         showBlocks = cfg.getBoolean("jade.show-blocks", true);
         showEntities = cfg.getBoolean("jade.show-entities", true);
         showHealth = cfg.getBoolean("jade.show-health", true);
@@ -96,9 +100,7 @@ public final class PluginConfig {
         showPotions = cfg.getBoolean("jade.show-potions", true);
 
         armorHudEnabled = cfg.getBoolean("armor-hud.enabled", true);
-        armorHudTextDisplay = "text_display".equalsIgnoreCase(cfg.getString("armor-hud.mode", "scoreboard"));
         armorHudIntervalTicks = Math.max(1, cfg.getInt("armor-hud.interval-ticks", 1));
-        armorHudRight = !"left".equalsIgnoreCase(cfg.getString("armor-hud.side", "left"));
         armorHudCompact = cfg.getBoolean("armor-hud.compact", false);
         armorHudPulseThreshold = Math.max(0, Math.min(100, cfg.getInt("armor-hud.pulse-threshold", 20)));
         armorHudShowOffhand = cfg.getBoolean("armor-hud.show-offhand", true);
@@ -139,6 +141,9 @@ public final class PluginConfig {
     public double getJadeRange() { return jadeRange; }
     public int getJadeVerticalOffsetBars() { return jadeVerticalOffsetBars; }
     public int getJadeLineGapBars() { return jadeLineGapBars; }
+    public boolean isJadeCompact() { return jadeCompact; }
+    public boolean isJadeShowIcons() { return jadeShowIcons; }
+    public boolean isJadeShowDetails() { return jadeShowDetails; }
     public boolean isShowBlocks() { return showBlocks; }
     public boolean isShowEntities() { return showEntities; }
     public boolean isShowHealth() { return showHealth; }
@@ -153,9 +158,7 @@ public final class PluginConfig {
     public boolean isShowPotions() { return showPotions; }
 
     public boolean isArmorHudEnabled() { return armorHudEnabled; }
-    public boolean isArmorHudTextDisplay() { return armorHudTextDisplay; }
     public int getArmorHudIntervalTicks() { return armorHudIntervalTicks; }
-    public boolean isArmorHudRight() { return armorHudRight; }
     public boolean isArmorHudCompact() { return armorHudCompact; }
     public int getArmorHudPulseThreshold() { return armorHudPulseThreshold; }
     public boolean isArmorHudShowOffhand() { return armorHudShowOffhand; }

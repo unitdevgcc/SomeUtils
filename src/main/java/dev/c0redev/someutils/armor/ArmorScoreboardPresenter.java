@@ -17,7 +17,7 @@ import org.bukkit.scoreboard.Team;
 import java.util.ArrayList;
 import java.util.List;
 
-final class ArmorScoreboardPresenter implements ArmorHudPresenter {
+final class ArmorScoreboardPresenter {
     private static final String OBJ = "su_armor";
     private static final Key FONT = Key.key("someutils", "armor_scoreboard");
     private static final ArmorSlot[] BODY = {
@@ -40,22 +40,20 @@ final class ArmorScoreboardPresenter implements ArmorHudPresenter {
     private int lastAnimFrame = -1;
     private String lastLayoutKey = "";
 
-    @Override
-    public void update(Player player, ArmorHudRender render) {
+    void update(Player player, ArmorSnapshot snapshot, boolean compact, int pulseThreshold, boolean showOffhand) {
         ensure(player);
-        ArmorSnapshot snapshot = render.snapshot();
         String fingerprint = snapshot.fingerprint()
-                + "|" + render.compact()
-                + "|" + render.pulseThreshold()
-                + "|" + render.showOffhand();
+                + "|" + compact
+                + "|" + pulseThreshold
+                + "|" + showOffhand;
 
         boolean snapshotChanged = !fingerprint.equals(lastFingerprint);
         if (snapshotChanged) {
             lastSnapshot = snapshot;
             lastFingerprint = fingerprint;
-            lastCompact = render.compact();
-            lastPulseThreshold = render.pulseThreshold();
-            lastShowOffhand = render.showOffhand();
+            lastCompact = compact;
+            lastPulseThreshold = pulseThreshold;
+            lastShowOffhand = showOffhand;
         }
 
         int animFrame = ticks++ % ArmorScoreboardGlyphs.ANIMATION_FRAMES;
@@ -71,8 +69,7 @@ final class ArmorScoreboardPresenter implements ArmorHudPresenter {
         }
     }
 
-    @Override
-    public void remove(Player player) {
+    void remove(Player player) {
         if (board == null) {
             return;
         }

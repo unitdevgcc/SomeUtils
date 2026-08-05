@@ -22,7 +22,10 @@ jade:
   interval-ticks: 2
   range: 6.0
   vertical-offset-bars: 1
-  line-gap-bars: 1
+  line-gap-bars: 0
+  compact: true
+  show-icons: true
+  show-details: true
   show-blocks: true
   show-entities: true
   show-health: true
@@ -38,9 +41,6 @@ jade:
 
 armor-hud:
   enabled: true
-  # scoreboard или экспериментальный text_display через PacketEvents
-  mode: scoreboard
-  side: left
   interval-ticks: 1
   # скрывает пустые слоты и лишние отступы
   compact: false

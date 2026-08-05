@@ -32,11 +32,19 @@ Armor HUD
 - `compact` скрывает пустые slots и уменьшает вертикальные отступы
 - Цвета рамки меняются в `/su` без ручной пересборки resource pack
 
+Jade HUD
+--------
+
+- `compact` ограничивает панель двумя приоритетными строками
+- Иконки, вторичные детали и интервалы переключаются в `/su`
+- Панель использует общие цвета Armor HUD
+- Прогресс разрушения заменяет второстепенные строки в compact mode
+
 Зависимости
 -----------
 
 - Paper 1.21.11+
-- PacketEvents 2.7+ (опционально, для Jade и экспериментального `text_display`)
+- PacketEvents 2.7+ (опционально, для Jade)
 
 Сборка
 ------
@@ -63,12 +71,14 @@ JAR будет в `build/libs/SomeUtils-<version>.jar`.
 - `resource-pack.force` — отключать клиента при отказе от resource pack
 - `invtweaks.enabled` — включить InvTweaks (сортировка)
 - `armor-hud.enabled` — включить Armor HUD
-- `armor-hud.mode` — `scoreboard` или экспериментальный `text_display`
-- `armor-hud.side` — `left` или `right` для TextDisplay-панели
 - `armor-hud.compact` — скрыть пустые slots и лишние отступы
 - `armor-hud.pulse-threshold` — порог анимации критической прочности, `0` отключает
 - `armor-hud.show-offhand` — показать непустой off-hand
 - `armor-hud.border.*` — цвета рамки и percentage cards
+- `jade.compact` — ограничить Jade двумя строками
+- `jade.show-icons` — показывать block/entity/tool icons
+- `jade.show-details` — показывать вторичную строку данных
+- `jade.line-gap-bars` — интервал между строками в full mode
 - `invtweaks.gui-controls` — показывать GUI-кнопки управления
 
 Команда

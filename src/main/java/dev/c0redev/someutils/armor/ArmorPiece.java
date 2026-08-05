@@ -49,13 +49,4 @@ public record ArmorPiece(ArmorSlot slot, boolean empty, String name, int damage,
         return name.replace(' ', '_');
     }
 
-    public String formatLine(String emptyLabel) {
-        if (empty) {
-            return slot.shortLabel() + " " + emptyLabel;
-        }
-        if (maxDurability <= 0) {
-            return slot.shortLabel() + " " + name;
-        }
-        return slot.shortLabel() + " " + name + " " + remaining() + "/" + maxDurability;
-    }
 }

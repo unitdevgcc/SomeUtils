@@ -1,8 +1,10 @@
 package dev.c0redev.someutils.jade;
 
 import dev.c0redev.someutils.SomeUtilsPlugin;
+import dev.c0redev.someutils.config.PluginConfig;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
@@ -28,52 +30,69 @@ final class HudLineBuilder {
     }
 
     List<HudLine> buildLines(Player player, TargetInfo target, boolean packLoaded, Float breakProgress) {
-        List<HudLine> lines = new ArrayList<>(MAX_ROWS);
-        String gap = packLoaded ? ICON_TEXT_GAP : "";
-        int iconWidth = packLoaded ? ICON_ADVANCE + HudFontMetrics.estimateWidth(ICON_TEXT_GAP) : 0;
+        PluginConfig cfg = plugin.getPluginConfig();
+        int maxRows = cfg.isJadeCompact() ? 2 : MAX_ROWS;
+        List<HudLine> lines = new ArrayList<>(maxRows);
+        boolean showIcons = packLoaded && cfg.isJadeShowIcons();
+        String gap = showIcons ? ICON_TEXT_GAP : "";
+        int iconWidth = showIcons ? ICON_ADVANCE + HudFontMetrics.estimateWidth(ICON_TEXT_GAP) : 0;
+        TextColor primary = color(cfg.getArmorHudPrimary(), NamedTextColor.WHITE);
+        TextColor accent = color(cfg.getArmorHudAccent(), NamedTextColor.YELLOW);
 
-        Component icon = packLoaded
+        Component icon = showIcons
                 ? Component.text(target.getType() == TargetInfo.Type.BLOCK ? blockGlyph(target) : ENTITY_ICON, NamedTextColor.WHITE).font(HUD_FONT)
                 : Component.empty();
         String title = plugin.getLanguageService().localizeTargetTitle(player, target);
         lines.add(new HudLine(
-                Component.empty().append(icon).append(Component.text(gap + title, NamedTextColor.WHITE).font(DEFAULT_FONT)),
+                Component.empty().append(icon).append(Component.text(gap + title, primary).font(DEFAULT_FONT)),
                 iconWidth + HudFontMetrics.estimateWidth(title)));
 
-        if (!target.getSubtitle().isEmpty()) {
+        if (cfg.isJadeCompact() && breakProgress != null) {
+            addBreakProgress(lines, player, packLoaded, breakProgress, maxRows, accent);
+        }
+
+        if (!target.getSubtitle().isEmpty() && lines.size() < maxRows) {
             String text = plugin.getLanguageService().localizeHud(player, target.getSubtitle());
-            Component marker = packLoaded ? statusIcon(target.getSubtitle(), player) : Component.empty();
+            Component marker = showIcons ? statusIcon(target.getSubtitle(), player) : Component.empty();
             lines.add(new HudLine(
-                    Component.empty().append(marker).append(Component.text(gap + text, NamedTextColor.GRAY).font(DEFAULT_FONT)),
+                    Component.empty().append(marker).append(Component.text(gap + text, accent).font(DEFAULT_FONT)),
                     iconWidth + HudFontMetrics.estimateWidth(text)));
         }
 
-        if (target.getTool() != TargetInfo.Tool.NONE) {
+        if (target.getTool() != TargetInfo.Tool.NONE && lines.size() < maxRows) {
             String text = plugin.getLanguageService().tr(player, "tool") + ": " + target.getTool().getLabel();
-            Component marker = packLoaded ? Component.text(toolGlyph(target.getTool()), NamedTextColor.YELLOW).font(HUD_FONT) : Component.empty();
+            Component marker = showIcons ? Component.text(toolGlyph(target.getTool()), accent).font(HUD_FONT) : Component.empty();
             lines.add(new HudLine(
-                    Component.empty().append(marker).append(Component.text(gap + text, NamedTextColor.YELLOW).font(DEFAULT_FONT)),
+                    Component.empty().append(marker).append(Component.text(gap + text, accent).font(DEFAULT_FONT)),
                     iconWidth + HudFontMetrics.estimateWidth(text)));
         }
 
-        if (breakProgress != null && lines.size() < MAX_ROWS) {
-            if (packLoaded) {
-                Component bar = Component.text(breakProgressGlyph(breakProgress), NamedTextColor.WHITE).font(HUD_FONT);
-                lines.add(new HudLine(bar, BREAK_PROGRESS_WIDTH));
-            } else {
-                String label = plugin.getLanguageService().tr(player, "break.progress");
-                int percent = Math.round(breakProgress * 100.0f);
-                String text = label + " " + percent + "%";
-                lines.add(new HudLine(Component.text(text, NamedTextColor.YELLOW).font(DEFAULT_FONT),
-                        HudFontMetrics.estimateWidth(text)));
-            }
+        if (!cfg.isJadeCompact() && breakProgress != null) {
+            addBreakProgress(lines, player, packLoaded, breakProgress, maxRows, accent);
         }
 
-        if (!target.getDetail().isEmpty() && lines.size() < MAX_ROWS) {
+        if (cfg.isJadeShowDetails() && !target.getDetail().isEmpty() && lines.size() < maxRows) {
             String text = plugin.getLanguageService().localizeHud(player, target.getDetail());
-            lines.add(new HudLine(Component.text(text, NamedTextColor.DARK_GRAY).font(DEFAULT_FONT), HudFontMetrics.estimateWidth(text)));
+            lines.add(new HudLine(Component.text(text, accent).font(DEFAULT_FONT), HudFontMetrics.estimateWidth(text)));
         }
         return lines;
+    }
+
+    private void addBreakProgress(List<HudLine> lines, Player player, boolean packLoaded, float progress,
+                                  int maxRows, TextColor accent) {
+        if (lines.size() >= maxRows) return;
+        if (packLoaded) {
+            lines.add(new HudLine(Component.text(breakProgressGlyph(progress), NamedTextColor.WHITE).font(HUD_FONT),
+                    BREAK_PROGRESS_WIDTH));
+            return;
+        }
+        String text = plugin.getLanguageService().tr(player, "break.progress") + " " + Math.round(progress * 100.0f) + "%";
+        lines.add(new HudLine(Component.text(text, accent).font(DEFAULT_FONT), HudFontMetrics.estimateWidth(text)));
+    }
+
+    private static TextColor color(String value, TextColor fallback) {
+        TextColor color = TextColor.fromHexString(value);
+        return color == null ? fallback : color;
     }
 
     Component decorate(HudLine line, boolean packLoaded) {

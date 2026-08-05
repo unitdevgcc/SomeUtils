@@ -74,7 +74,7 @@ public final class SomeUtilsPlugin extends JavaPlugin {
         }
 
         if (!packetEventsPresent) {
-            getLogger().warning("packetevents absent — Jade HUD, armor text_display, packet inventory visuals disabled");
+            getLogger().warning("packetevents absent — Jade HUD and packet inventory visuals disabled");
         }
         getLogger().info("SomeUtils enabled for 1.21.11");
     }

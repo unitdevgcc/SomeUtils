@@ -256,7 +256,7 @@ public final class ResourcePackServer implements Listener {
     private void writeArmorHudAssets(ZipOutputStream zip) throws Exception {
         String base = "assets/someutils/textures/armor_hud/";
         String[] names = {
-                "panel.png", "panel_line.png", "side_rail.png", "bar_background.png",
+                "panel.png", "side_rail.png", "bar_background.png",
                 "slot_helmet.png", "slot_chestplate.png", "slot_leggings.png", "slot_boots.png",
                 "empty_helmet.png", "empty_chestplate.png", "empty_leggings.png", "empty_boots.png",
                 "armor_title.png"
@@ -556,7 +556,6 @@ public final class ResourcePackServer implements Listener {
                     {"type":"bitmap","file":"someutils:armor_hud/slot_chestplate.png","ascent":8,"height":16,"chars":["\\uE101"]},
                     {"type":"bitmap","file":"someutils:armor_hud/slot_leggings.png","ascent":8,"height":16,"chars":["\\uE102"]},
                     {"type":"bitmap","file":"someutils:armor_hud/slot_boots.png","ascent":8,"height":16,"chars":["\\uE103"]},
-                    {"type":"bitmap","file":"someutils:armor_hud/panel_line.png","ascent":14,"height":18,"chars":["\\uE110"]},
                     {"type":"space","advances":{"\\uE111":-129}}
                   ]
                 }
@@ -639,7 +638,7 @@ public final class ResourcePackServer implements Listener {
                 {
                   "providers": [
                     {"type":"bitmap","file":"someutils:font/status_atlas.png","ascent":10,"height":16,"chars":["\\uE008\\uE009\\uE00E\\uE00F\\uE010"]},
-                    {"type":"bitmap","file":"someutils:font/crit_icon.png","ascent":8,"height":10,"chars":["\\uE01C"]},
+                    {"type":"bitmap","file":"someutils:font/crit_icon.png","ascent":8,"height":10,"chars":["\\uE030"]},
                     {"type":"bitmap","file":"someutils:font/item_atlas.png","ascent":10,"height":16,"chars":["\\uE00A\\uE00B\\uE00C\\uE00D"]},
                     {"type":"bitmap","file":"someutils:font/break_progress.png","ascent":10,"height":16,"chars":[%s]},
                     {"type":"bitmap","file":"someutils:font/block_atlas.png","ascent":10,"height":16,"chars":%s}
@@ -673,9 +672,9 @@ public final class ResourcePackServer implements Listener {
         return """
                 {
                   "providers": [
-                    {"type":"bitmap","file":"someutils:font/waila_start.png","ascent":14,"height":26,"chars":["\\uF000"]},
-                    {"type":"bitmap","file":"someutils:font/waila_part.png","ascent":14,"height":26,"chars":["\\uF001"]},
-                    {"type":"bitmap","file":"someutils:font/waila_end.png","ascent":14,"height":26,"chars":["\\uF002"]},
+                    {"type":"bitmap","file":"someutils:font/waila_start.png","ascent":12,"height":20,"chars":["\\uF000"]},
+                    {"type":"bitmap","file":"someutils:font/waila_part.png","ascent":12,"height":20,"chars":["\\uF001"]},
+                    {"type":"bitmap","file":"someutils:font/waila_end.png","ascent":12,"height":20,"chars":["\\uF002"]},
                     {"type":"space","advances":{"%s":-1,%s}}
                   ]
                 }
@@ -683,33 +682,37 @@ public final class ResourcePackServer implements Listener {
     }
 
     private byte[] wailaPartPng(int width, boolean left, boolean right) throws Exception {
-        BufferedImage image = new BufferedImage(width, 26, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage image = new BufferedImage(width, 20, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
-        Color shadow = new Color(3, 5, 6, 185);
-        Color border = new Color(62, 82, 75, 255);
-        Color fill = new Color(16, 23, 24, 245);
-        Color accent = new Color(132, 187, 99, 255);
-        Color accentDim = new Color(66, 109, 59, 255);
+        Color accent = parseColor(plugin.getPluginConfig().getArmorHudAccent(), new Color(132, 187, 99));
+        Color primary = parseColor(plugin.getPluginConfig().getArmorHudPrimary(), new Color(175, 192, 122));
+        Color secondary = parseColor(plugin.getPluginConfig().getArmorHudSecondary(), new Color(50, 67, 50));
+        Color border = mix(secondary, primary, 0.32);
+        Color fillBase = mix(secondary, Color.BLACK, 0.58);
+        Color fill = new Color(fillBase.getRed(), fillBase.getGreen(), fillBase.getBlue(), 242);
+        Color shadow = new Color(0, 0, 0, 155);
+        Color accentDim = mix(secondary, accent, 0.42);
 
         graphics.setColor(shadow);
-        graphics.fillRect(0, 5, width, 21);
+        graphics.fillRect(0, 4, width, 16);
         graphics.setColor(border);
-        graphics.fillRect(0, 0, width, 22);
+        graphics.fillRect(0, 0, width, 17);
         graphics.setColor(fill);
-        graphics.fillRect(0, 1, width, 20);
-        graphics.setColor(new Color(98, 140, 78, 130));
+        graphics.fillRect(0, 1, width, 15);
+        Color highlight = mix(primary, accent, 0.35);
+        graphics.setColor(new Color(highlight.getRed(), highlight.getGreen(), highlight.getBlue(), 140));
         graphics.fillRect(0, 1, width, 1);
-        graphics.setColor(new Color(45, 68, 60, 180));
-        graphics.fillRect(0, 20, width, 1);
+        graphics.setColor(border.darker());
+        graphics.fillRect(0, 15, width, 1);
         if (left) {
             graphics.setColor(accentDim);
-            graphics.fillRect(0, 1, 2, 20);
+            graphics.fillRect(0, 1, 2, 15);
             graphics.setColor(accent);
-            graphics.fillRect(0, 2, 1, 18);
+            graphics.fillRect(0, 2, 1, 13);
         }
         if (right) {
             graphics.setColor(border);
-            graphics.fillRect(width - 1, 1, 1, 20);
+            graphics.fillRect(width - 1, 1, 1, 15);
         }
         graphics.dispose();
         return png(image);
