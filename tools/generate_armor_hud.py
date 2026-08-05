@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 import sys
+import struct
 import zlib
 from pathlib import Path
-from PIL import Image
+
+
+def chunk(kind: bytes, data: bytes) -> bytes:
+    body = kind + data
+    return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
+
 
 def png(path: Path, rows: list[str], palette: dict[str, tuple[int, int, int, int]]) -> None:
     w, h = len(rows[0]), len(rows)
-    # RGBA flat buffer; no PNG filter byte (that was shifting every pixel)
-    raw = bytes(c for row in rows for p in row for c in palette[p])
-    img = Image.frombytes("RGBA", (w, h), raw)
-    img.save(path)
+    raw = b"".join(b"\0" + bytes(c for p in row for c in palette[p]) for row in rows)
+    header = struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header)
+                     + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
 
 def canvas(shape: str) -> list[str]:
     H = lambda *parts: "".join(parts)
@@ -110,7 +116,7 @@ def main():
         "w": (255, 255, 255, 255),
     }
 
-    # Составные icon+bar glyphs: icon 16x16 + bar 16x3 = 16x19
+    # составной glyph сохраняет позицию иконки и полосы
     for slot in ["helmet", "chestplate", "leggings", "boots"]:
         icon_rows = canvas(slot)
         bar_rows = [
@@ -125,7 +131,7 @@ def main():
         empty_combined = empty_icon_rows + bar_rows
         png(tex / f"empty_{slot}.png", empty_combined, palette)
 
-    # bar fill overlay 16x19: transparent icon area + fill on bar row (same size as icon+bar)
+    # заполнение полосы использует тот же размер glyph
     bar_width = 16
     for frame in range(16):
         filled = round((bar_width - 2) * frame / 15)
@@ -136,7 +142,7 @@ def main():
         ]
         png(tex / f"bar_fill_{frame}.png", rows, palette)
 
-    # ARMOR: отдельный пиксельный шрифт, не minecraft:default
+    # отдельный пиксельный шрифт заголовка
     letters = {
         "A": ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
         "R": ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
@@ -158,7 +164,7 @@ def main():
                             title_rows[y * scale + sy][cursor + x * scale + sx] = "m"
         cursor += 6 * scale
 
-    # Общая рамка: верх, rails, низ. Внутри прозрачность.
+    # рамка разделена на верх, боковые линии и низ
     frame_w, frame_h = 96, 18
     for anim in range(32):
         def edge(kind):
@@ -183,7 +189,6 @@ def main():
     png(tex / "armor_title.png", ["".join(row) for row in title_rows], palette)
 
 
-    # pack.mcmeta
     mcmeta = out / "pack.mcmeta"
     mcmeta.write_text('{"pack":{"pack_format":75,"description":"SomeUtils Armor HUD"}}')
 
