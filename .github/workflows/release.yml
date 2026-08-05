@@ -13,18 +13,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
       - name: Build
         env:
           SOMEUTILS_VERSION: ${{ github.ref_name }}
-        run: ./gradlew build
+        run: ./gradlew build --no-daemon
 
       - name: Get version
         id: version

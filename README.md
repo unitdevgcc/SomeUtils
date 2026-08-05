@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/Paper-1.21.11-F37723?style=flat-square" alt="Paper 1.21.11">
   <img src="https://img.shields.io/github/actions/workflow/status/unitdevgcc/SomeUtils/ci.yml?branch=master&style=flat-square&label=build" alt="CI">
   <img src="https://img.shields.io/github/license/unitdevgcc/SomeUtils?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/version-1.2.0-6fae6f?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.2.1-6fae6f?style=flat-square" alt="Version">
 </p>
 
 Minecraft плагин для Paper 1.21.11. Утилиты и фичи для сервера.
