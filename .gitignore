@@ -2,3 +2,12 @@
 build/
 .cache/
 *.class
+server
+libraries
+cache
+versions
+tools/__pycache__
+eula.txt
+server.properties
+plugins/.paper-remapped/
+logs/

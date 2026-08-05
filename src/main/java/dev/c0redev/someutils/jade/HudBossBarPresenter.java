@@ -11,8 +11,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
 
-
-final class HudBossBarPresenter {
+final class HudBossBarPresenter implements HudPresenter {
 
     private static final int MAX_ROWS = 4;
     private static final int MAX_OFFSET_ROWS = 4;
@@ -31,7 +30,8 @@ final class HudBossBarPresenter {
         }
     }
 
-    void update(Player player, List<HudLine> lines, boolean packLoaded, int requestedOffset, int lineGapBars) {
+    @Override
+    public void update(Player player, List<HudLine> lines, boolean packLoaded, int requestedOffset, int lineGapBars) {
         int slot = 0;
         for (int spacer = 0; spacer < requestedOffset; spacer++) {
             sendSlot(player, slot++, Component.empty(), slot <= usedSlots);
@@ -51,7 +51,8 @@ final class HudBossBarPresenter {
         usedSlots = slot;
     }
 
-    void remove(Player player) {
+    @Override
+    public void remove(Player player) {
         for (int slot = 0; slot < usedSlots; slot++) {
             send(player, new WrapperPlayServerBossBar(ids[slot], WrapperPlayServerBossBar.Action.REMOVE));
         }

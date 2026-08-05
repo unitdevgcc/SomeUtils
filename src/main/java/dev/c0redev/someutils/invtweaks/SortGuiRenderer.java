@@ -28,7 +28,9 @@ final class SortGuiRenderer {
         if (session.pages() > 1) {
             title = title.append(Component.text("  " + (session.page + 1) + "/" + session.pages(), NamedTextColor.GRAY));
         }
-        Inventory gui = Bukkit.createInventory(new SortGuiHolder(session), rows * 9, title);
+        SortGuiHolder holder = new SortGuiHolder(session);
+        Inventory gui = Bukkit.createInventory(holder, rows * 9, title);
+        holder.setInventory(gui);
         drawControls(gui);
         int start = session.page * session.capacity();
         for (int i = 0; i < session.capacity() && start + i < session.source.getSize(); i++) {

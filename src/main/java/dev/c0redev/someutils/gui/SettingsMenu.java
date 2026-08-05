@@ -4,6 +4,7 @@ import dev.c0redev.someutils.SomeUtilsPlugin;
 import dev.c0redev.someutils.lang.Language;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -30,17 +31,24 @@ public final class SettingsMenu implements Listener {
     private static final int SLOT_LANG_EN = 15;
     private static final int SLOT_HEADER_FEATURES = 27;
     private static final int SLOT_JADE = 29;
+    private static final int SLOT_ARMOR = 31;
+    private static final int SLOT_ARMOR_ACCENT = 33;
+    private static final int SLOT_ARMOR_PRIMARY = 34;
+    private static final int SLOT_ARMOR_SECONDARY = 35;
+    private static final int SLOT_ARMOR_COMPACT = 28;
+    private static final int SLOT_ARMOR_PULSE = 30;
+    private static final int SLOT_ARMOR_OFFHAND = 32;
     private static final int SLOT_CLOSE = 40;
-
-    private static final int[] PANEL_SLOTS = {10, 12, 14, 16, 28, 30};
 
     private final SomeUtilsPlugin plugin;
 
     public SettingsMenu(SomeUtilsPlugin plugin) { this.plugin = plugin; }
 
     public void open(Player player) {
-        Inventory inventory = Bukkit.createInventory(new SettingsHolder(), SIZE,
+        SettingsHolder holder = new SettingsHolder();
+        Inventory inventory = Bukkit.createInventory(holder, SIZE,
                 Component.text(plugin.getLanguageService().tr(player, "settings"), NamedTextColor.DARK_GREEN, TextDecoration.BOLD));
+        holder.setInventory(inventory);
 
         ItemStack frame = pane(Material.GRAY_STAINED_GLASS_PANE, "");
         ItemStack divider = pane(Material.LIME_STAINED_GLASS_PANE, "divider");
@@ -59,6 +67,14 @@ public final class SettingsMenu implements Listener {
 
         boolean jadeEnabled = plugin.getJadeManager().isEnabledFor(player);
         inventory.setItem(SLOT_JADE, jadeToggle(player, jadeEnabled));
+        boolean armorEnabled = plugin.getArmorHudManager().isEnabledFor(player);
+        inventory.setItem(SLOT_ARMOR, armorToggle(player, armorEnabled));
+        inventory.setItem(SLOT_ARMOR_ACCENT, borderColor(player, "accent"));
+        inventory.setItem(SLOT_ARMOR_PRIMARY, borderColor(player, "primary"));
+        inventory.setItem(SLOT_ARMOR_SECONDARY, borderColor(player, "secondary"));
+        inventory.setItem(SLOT_ARMOR_COMPACT, armorOption("Compact", plugin.getPluginConfig().isArmorHudCompact()));
+        inventory.setItem(SLOT_ARMOR_PULSE, armorOption("Critical cracks", plugin.getPluginConfig().getArmorHudPulseThreshold() > 0));
+        inventory.setItem(SLOT_ARMOR_OFFHAND, armorOption("Offhand", plugin.getPluginConfig().isArmorHudShowOffhand()));
 
         inventory.setItem(SLOT_CLOSE, closeButton(player));
 
@@ -79,6 +95,16 @@ public final class SettingsMenu implements Listener {
             plugin.getJadeManager().toggle(player);
             open(player);
         }
+        case SLOT_ARMOR -> {
+            plugin.getArmorHudManager().toggle(player);
+            open(player);
+        }
+        case SLOT_ARMOR_ACCENT -> cycleBorder(player, "accent");
+        case SLOT_ARMOR_PRIMARY -> cycleBorder(player, "primary");
+        case SLOT_ARMOR_SECONDARY -> cycleBorder(player, "secondary");
+        case SLOT_ARMOR_COMPACT -> toggleArmorConfig(player, "armor-hud.compact");
+        case SLOT_ARMOR_PULSE -> togglePulse(player);
+        case SLOT_ARMOR_OFFHAND -> toggleArmorConfig(player, "armor-hud.show-offhand");
         case SLOT_CLOSE -> player.closeInventory();
         default -> {
         }
@@ -128,6 +154,100 @@ public final class SettingsMenu implements Listener {
             item.setItemMeta(meta);
         }
         return item;
+    }
+
+    private ItemStack armorToggle(Player player, boolean enabled) {
+        Component name = Component.text(plugin.getLanguageService().tr(player, "armor"),
+                enabled ? NamedTextColor.GREEN : NamedTextColor.GRAY, TextDecoration.BOLD);
+        List<Component> lore = List.of(
+                Component.text(plugin.getLanguageService().tr(player, enabled ? "armor.lore.on" : "armor.lore.off"), NamedTextColor.GRAY),
+                Component.empty(),
+                Component.text((enabled ? "● " : "○ ") + plugin.getLanguageService().tr(player, enabled ? "armor.on" : "armor.off"),
+                        enabled ? NamedTextColor.GREEN : NamedTextColor.RED),
+                Component.text(plugin.getLanguageService().tr(player, "armor.click"), NamedTextColor.DARK_GRAY)
+        );
+        ItemStack item = customItem(enabled ? Material.IRON_CHESTPLATE : Material.LEATHER_CHESTPLATE,
+                enabled ? "armor_on" : "armor_off", name, lore);
+        if (enabled) {
+            ItemMeta meta = item.getItemMeta();
+            meta.setEnchantmentGlintOverride(true);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private ItemStack borderColor(Player player, String channel) {
+        String key = "armor-hud.border." + channel;
+        String color = plugin.getConfig().getString(key, "#84BB63");
+        TextColor exact = exactColor(color);
+        Component name = Component.text("Border " + channel, exact, TextDecoration.BOLD);
+        List<Component> lore = List.of(
+                Component.text("■  " + color.toUpperCase(java.util.Locale.ROOT), exact),
+                Component.text("RGB " + rgb(color), NamedTextColor.GRAY),
+                Component.text("Click to cycle", NamedTextColor.DARK_GRAY)
+        );
+        Material material = switch (channel) {
+            case "primary" -> Material.LIME_DYE;
+            case "secondary" -> Material.GRAY_DYE;
+            default -> Material.GREEN_DYE;
+        };
+        return customItem(material, "armor_border_" + channel, name, lore);
+    }
+
+    private static TextColor exactColor(String value) {
+        try {
+            return TextColor.fromHexString(value);
+        } catch (RuntimeException ignored) {
+            return NamedTextColor.WHITE;
+        }
+    }
+
+    private static String rgb(String value) {
+        try {
+            int rgb = Integer.parseInt(value.substring(1), 16);
+            return (rgb >> 16 & 255) + ", " + (rgb >> 8 & 255) + ", " + (rgb & 255);
+        } catch (RuntimeException ignored) {
+            return "invalid";
+        }
+    }
+
+    private void cycleBorder(Player player, String channel) {
+        String key = "armor-hud.border." + channel;
+        String current = plugin.getConfig().getString(key, "#84BB63");
+        String[] palette = {"#84BB63", "#62D7FF", "#D68CFF", "#FFB84D", "#FF5D73", "#E8F1FF"};
+        int index = 0;
+        for (int i = 0; i < palette.length; i++) {
+            if (palette[i].equalsIgnoreCase(current)) {
+                index = (i + 1) % palette.length;
+                break;
+            }
+        }
+        plugin.getConfig().set(key, palette[index]);
+        plugin.saveConfig();
+        plugin.reloadAll();
+        open(player);
+    }
+
+    private ItemStack armorOption(String label, boolean enabled) {
+        return customItem(enabled ? Material.LIME_DYE : Material.GRAY_DYE, "armor_border_primary",
+                Component.text(label, enabled ? NamedTextColor.GREEN : NamedTextColor.GRAY, TextDecoration.BOLD),
+                List.of(Component.text(enabled ? "ON" : "OFF", enabled ? NamedTextColor.GREEN : NamedTextColor.RED),
+                        Component.text("Click to toggle", NamedTextColor.DARK_GRAY)));
+    }
+
+    private void toggleArmorConfig(Player player, String path) {
+        plugin.getConfig().set(path, !plugin.getConfig().getBoolean(path, true));
+        plugin.saveConfig();
+        plugin.reloadAll();
+        open(player);
+    }
+
+    private void togglePulse(Player player) {
+        int current = plugin.getPluginConfig().getArmorHudPulseThreshold();
+        plugin.getConfig().set("armor-hud.pulse-threshold", current > 0 ? 0 : 20);
+        plugin.saveConfig();
+        plugin.reloadAll();
+        open(player);
     }
 
     private ItemStack closeButton(Player player) {

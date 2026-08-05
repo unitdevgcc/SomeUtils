@@ -22,6 +22,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build
+        env:
+          SOMEUTILS_VERSION: ${{ github.ref_name }}
         run: ./gradlew build
 
       - name: Get version

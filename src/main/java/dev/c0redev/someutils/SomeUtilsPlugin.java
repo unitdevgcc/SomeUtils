@@ -1,5 +1,6 @@
 package dev.c0redev.someutils;
 
+import dev.c0redev.someutils.armor.ArmorHudManager;
 import dev.c0redev.someutils.command.SomeUtilsCommand;
 import dev.c0redev.someutils.config.PluginConfig;
 import dev.c0redev.someutils.invtweaks.SortContainerGui;
@@ -17,10 +18,12 @@ public final class SomeUtilsPlugin extends JavaPlugin {
     private static SomeUtilsPlugin instance;
     private PluginConfig pluginConfig;
     private JadeManager jadeManager;
+    private ArmorHudManager armorHudManager;
     private ResourcePackServer packServer;
     private SortContainerGui sortContainerGui;
     private LanguageService languageService;
     private SettingsMenu settingsMenu;
+    private DamageIndicatorManager damageIndicatorManager;
     private boolean packetEventsPresent;
 
     @Override
@@ -46,7 +49,14 @@ public final class SomeUtilsPlugin extends JavaPlugin {
             jadeManager.start();
         }
 
-        getServer().getPluginManager().registerEvents(new DamageIndicatorManager(this), this);
+        armorHudManager = new ArmorHudManager(this);
+        getServer().getPluginManager().registerEvents(armorHudManager, this);
+        if (pluginConfig.isArmorHudEnabled()) {
+            armorHudManager.start();
+        }
+
+        damageIndicatorManager = new DamageIndicatorManager(this);
+        getServer().getPluginManager().registerEvents(damageIndicatorManager, this);
 
         packServer = new ResourcePackServer(this);
         if (pluginConfig.isResourcePackEnabled()) {
@@ -63,6 +73,9 @@ public final class SomeUtilsPlugin extends JavaPlugin {
             cmd.setTabCompleter(command);
         }
 
+        if (!packetEventsPresent) {
+            getLogger().warning("packetevents absent — Jade HUD, armor text_display, packet inventory visuals disabled");
+        }
         getLogger().info("SomeUtils enabled for 1.21.11");
     }
 
@@ -70,6 +83,12 @@ public final class SomeUtilsPlugin extends JavaPlugin {
     public void onDisable() {
         if (jadeManager != null) {
             jadeManager.stop();
+        }
+        if (armorHudManager != null) {
+            armorHudManager.stop();
+        }
+        if (damageIndicatorManager != null) {
+            damageIndicatorManager.shutdown();
         }
         if (packServer != null) {
             packServer.stop();
@@ -82,11 +101,21 @@ public final class SomeUtilsPlugin extends JavaPlugin {
     public void reloadAll() {
         reloadConfig();
         pluginConfig.reload();
+        if (languageService != null) {
+            languageService.reload();
+        }
 
         if (jadeManager != null) {
             jadeManager.stop();
             if (pluginConfig.isJadeEnabled()) {
                 jadeManager.start();
+            }
+        }
+
+        if (armorHudManager != null) {
+            armorHudManager.stop();
+            if (pluginConfig.isArmorHudEnabled()) {
+                armorHudManager.start();
             }
         }
 
@@ -104,6 +133,10 @@ public final class SomeUtilsPlugin extends JavaPlugin {
 
     public JadeManager getJadeManager() {
         return jadeManager;
+    }
+
+    public ArmorHudManager getArmorHudManager() {
+        return armorHudManager;
     }
 
     public ResourcePackServer getPackServer() {

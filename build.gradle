@@ -1,9 +1,17 @@
+import java.nio.file.Files
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+
 plugins {
     id 'java'
 }
 
 group = 'dev.c0redev'
-version = '1.0.0'
+version = providers.gradleProperty('releaseVersion')
+        .orElse(providers.environmentVariable('SOMEUTILS_VERSION'))
+        .map { v -> v.startsWith('v') ? v.substring(1) : v }
+        .getOrElse('1.0.0')
 
 repositories {
     mavenCentral()
@@ -23,27 +31,100 @@ dependencies {
     compileOnly 'io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT'
     compileOnly 'com.github.retrooper:packetevents-spigot:2.7.0'
     wailaGeneratorImplementation 'xyz.xenondevs:minecraft-model-renderer:1.3'
+    testImplementation 'io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 def vanillaClientUrl = 'https://piston-data.mojang.com/v1/objects/ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd/client.jar'
 def vanillaClientJar = layout.projectDirectory.file('.cache/minecraft-client-1.21.11.jar')
 def vanillaAssetsDir = layout.buildDirectory.dir('generated/vanilla-assets')
 def russianLanguageUrl = 'https://resources.download.minecraft.net/6c/6c8db9231984ebce2717d8a560956842f99ee63a'
+def vanillaClientSha1 = 'ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd'
+def russianLanguageSha1 = '6c8db9231984ebce2717d8a560956842f99ee63a'
 def russianLanguageFile = layout.projectDirectory.file('.cache/ru_ru.json')
 def wailaTextureMap = layout.buildDirectory.file('generated/waila-texture-map.properties')
 def wailaRenderedAssetsDir = layout.buildDirectory.dir('generated/waila-rendered-assets')
+def armorHudAssetsDir = layout.buildDirectory.dir('generated/armor-hud')
+
+// атомарная загрузка: timeout, status, temp + rename; без внешних зависимостей
+static String sha1(File file) {
+    MessageDigest digest = MessageDigest.getInstance('SHA-1')
+    file.withInputStream { input ->
+        byte[] buffer = new byte[8192]
+        int read
+        while ((read = input.read(buffer)) >= 0) {
+            digest.update(buffer, 0, read)
+        }
+    }
+    return digest.digest().collect { String.format('%02x', it) }.join()
+}
+
+static void downloadAtomic(String url, File dest, String expectedSha1,
+                           int connectMs = 15_000, int readMs = 120_000) {
+    if (dest.exists() && dest.length() > 0 && (!expectedSha1 || sha1(dest) == expectedSha1)) {
+        return
+    }
+    if (dest.exists()) {
+        dest.delete()
+    }
+    File parent = dest.parentFile
+    if (parent != null) {
+        parent.mkdirs()
+    }
+    File tmp = new File(parent, dest.name + '.part')
+    if (tmp.exists()) {
+        tmp.delete()
+    }
+    HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection()
+    conn.setConnectTimeout(connectMs)
+    conn.setReadTimeout(readMs)
+    conn.setInstanceFollowRedirects(true)
+    conn.setRequestProperty('User-Agent', 'SomeUtils-Gradle')
+    try {
+        conn.connect()
+        int code = conn.responseCode
+        if (code < 200 || code >= 300) {
+            throw new GradleException("download failed HTTP ${code}: ${url}")
+        }
+        conn.inputStream.withStream { input ->
+            tmp.withOutputStream { output ->
+                byte[] buf = new byte[8192]
+                int n
+                while ((n = input.read(buf)) >= 0) {
+                    output.write(buf, 0, n)
+                }
+            }
+        }
+        if (tmp.length() <= 0 || (expectedSha1 && sha1(tmp) != expectedSha1)) {
+            tmp.delete()
+            throw new GradleException("download validation failed: ${url}")
+        }
+        try {
+            Files.move(tmp.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE)
+        } catch (AtomicMoveNotSupportedException ignored) {
+            Files.move(tmp.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+    } catch (Exception e) {
+        if (tmp.exists()) {
+            tmp.delete()
+        }
+        if (e instanceof GradleException) {
+            throw e
+        }
+        throw new GradleException("download failed: ${url} (${e.message})", e)
+    } finally {
+        conn.disconnect()
+    }
+}
 
 tasks.register('extractVanillaBlockTextures') {
     outputs.dir(vanillaAssetsDir)
 
     doLast {
         File clientJar = vanillaClientJar.asFile
-        if (!clientJar.exists()) {
-            clientJar.parentFile.mkdirs()
-            new URL(vanillaClientUrl).withInputStream { input ->
-                clientJar.withOutputStream { output -> output << input }
-            }
-        }
+        downloadAtomic(vanillaClientUrl, clientJar, vanillaClientSha1)
 
         copy {
             from zipTree(clientJar)
@@ -67,13 +148,7 @@ tasks.register('extractVanillaBlockTextures') {
 tasks.register('downloadRussianLanguage') {
     outputs.file(russianLanguageFile)
     doLast {
-        File languageFile = russianLanguageFile.asFile
-        if (!languageFile.exists()) {
-            languageFile.parentFile.mkdirs()
-            new URL(russianLanguageUrl).withInputStream { input ->
-                languageFile.withOutputStream { output -> output << input }
-            }
-        }
+        downloadAtomic(russianLanguageUrl, russianLanguageFile.asFile, russianLanguageSha1)
     }
 }
 
@@ -109,6 +184,20 @@ tasks.register('renderWailaAtlas', JavaExec) {
     args vanillaClientJar.asFile.absolutePath, wailaTextureMap.get().asFile.absolutePath, wailaRenderedAssetsDir.get().asFile.absolutePath
 }
 
+tasks.register('generateArmorHudTextures', Exec) {
+    inputs.file(file('tools/generate_armor_hud.py'))
+    outputs.dir(armorHudAssetsDir)
+    commandLine 'python3', file('tools/generate_armor_hud.py').absolutePath, armorHudAssetsDir.get().asFile.absolutePath
+}
+
+tasks.register('armorHudResourcePack', Zip) {
+    dependsOn tasks.named('generateArmorHudTextures')
+    from(armorHudAssetsDir)
+    archiveFileName = 'SomeUtilsArmorHUDRP.zip'
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+}
+tasks.named('build') { dependsOn tasks.named('armorHudResourcePack') }
+
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(21)
 }
@@ -119,11 +208,17 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << '-Xlint:deprecation'
 }
 
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
+}
+
 processResources {
     dependsOn tasks.named('extractVanillaBlockTextures')
     dependsOn tasks.named('generateWailaTextureMap')
     dependsOn tasks.named('renderWailaAtlas')
     dependsOn tasks.named('generateWailaRussianMap')
+    dependsOn tasks.named('generateArmorHudTextures')
+    from(armorHudAssetsDir)
     from(vanillaAssetsDir)
     from(wailaTextureMap) {
         rename { 'waila-texture-map.properties' }

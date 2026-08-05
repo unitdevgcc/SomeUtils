@@ -10,11 +10,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class LanguageService {
     private static final String[] HUD_KEYS = {
@@ -28,21 +28,25 @@ public final class LanguageService {
         "Speed:", "Jump:", "Baby",
     };
 
+    private final SomeUtilsPlugin plugin;
     private final File file;
-    private final Map<UUID, Language> preferences = new HashMap<>();
+    private final Map<UUID, Language> preferences = new ConcurrentHashMap<>();
     private final Properties russianVanilla = new Properties();
 
-    private final Map<String, String> langRu = new HashMap<>();
-    private final Map<String, String> langEn = new HashMap<>();
+    private final Map<String, String> langRu = new ConcurrentHashMap<>();
+    private final Map<String, String> langEn = new ConcurrentHashMap<>();
 
     public LanguageService(SomeUtilsPlugin plugin) {
+        this.plugin = plugin;
         file = new File(plugin.getDataFolder(), "languages.yml");
         loadVanillaRussian(plugin);
         loadLangFile(plugin);
         load();
     }
 
-    public Language getPreference(Player player) { return preferences.getOrDefault(player.getUniqueId(), Language.AUTO); }
+    public Language getPreference(Player player) {
+        return preferences.getOrDefault(player.getUniqueId(), Language.AUTO);
+    }
 
     public Language getEffective(Player player) {
         Language selected = getPreference(player);
@@ -56,7 +60,19 @@ public final class LanguageService {
         save();
     }
 
-    public String tr(Player player, String key) { return tr(getEffective(player), key); }
+    public void reload() {
+        preferences.clear();
+        russianVanilla.clear();
+        langRu.clear();
+        langEn.clear();
+        loadVanillaRussian(plugin);
+        loadLangFile(plugin);
+        load();
+    }
+
+    public String tr(Player player, String key) {
+        return tr(getEffective(player), key);
+    }
 
     public String tr(Language language, String key) {
         Map<String, String> source = language == Language.RU ? langRu : langEn;
@@ -114,13 +130,19 @@ public final class LanguageService {
         if (!file.exists()) return;
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
         for (String id : config.getKeys(false)) {
-            try { preferences.put(UUID.fromString(id), Language.from(config.getString(id))); } catch (IllegalArgumentException ignored) { }
+            try {
+                preferences.put(UUID.fromString(id), Language.from(config.getString(id)));
+            } catch (IllegalArgumentException ignored) {
+            }
         }
     }
 
     private void save() {
         YamlConfiguration config = new YamlConfiguration();
         preferences.forEach((id, language) -> config.set(id.toString(), language.name()));
-        try { config.save(file); } catch (IOException ignored) { }
+        try {
+            config.save(file);
+        } catch (IOException ignored) {
+        }
     }
 }

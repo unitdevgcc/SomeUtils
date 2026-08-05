@@ -39,6 +39,7 @@ public final class SomeUtilsCommand implements CommandExecutor, TabCompleter {
             case "help" -> sendHelp(sender);
             case "sort" -> handleSort(sender, args);
             case "jade" -> handleJade(sender);
+            case "armor" -> handleArmor(sender);
             case "refill" -> handleRefill(sender);
             case "reload" -> handleReload(sender);
             case "pack" -> handlePack(sender);
@@ -56,23 +57,33 @@ public final class SomeUtilsCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(Component.text("No permission", NamedTextColor.RED));
             return;
         }
-
-        InventorySorter.SortMode mode = InventorySorter.SortMode.DEFAULT;
-        if (args.length >= 2) {
-            mode = switch (args[1].toLowerCase(Locale.ROOT)) {
-                case "columns", "col" -> InventorySorter.SortMode.COLUMNS;
-                case "stack", "stackonly" -> InventorySorter.SortMode.STACK_ONLY;
-                default -> InventorySorter.SortMode.DEFAULT;
-            };
+        if (!plugin.getPluginConfig().isInvTweaksEnabled()) {
+            sender.sendMessage(Component.text("InvTweaks disabled", NamedTextColor.RED));
+            return;
         }
 
-        InventorySorter.sortOpen(
+        InventorySorter.SortMode mode = parseMode(args, 1);
+        if (!InventorySorter.sortOpen(
                 player,
                 mode,
                 plugin.getPluginConfig().isSortPlayerInventory(),
                 plugin.getPluginConfig().isSortHotbar()
-        );
+        )) {
+            player.sendMessage(Component.text("Unsupported container", NamedTextColor.RED));
+            return;
+        }
         player.sendMessage(Component.text("Sorted (" + mode.name().toLowerCase(Locale.ROOT) + ")", NamedTextColor.GREEN));
+    }
+
+    private static InventorySorter.SortMode parseMode(String[] args, int index) {
+        if (args.length <= index) {
+            return InventorySorter.SortMode.DEFAULT;
+        }
+        return switch (args[index].toLowerCase(Locale.ROOT)) {
+            case "columns", "col" -> InventorySorter.SortMode.COLUMNS;
+            case "stack", "stackonly" -> InventorySorter.SortMode.STACK_ONLY;
+            default -> InventorySorter.SortMode.DEFAULT;
+        };
     }
 
     private void handleJade(CommandSender sender) {
@@ -84,7 +95,20 @@ public final class SomeUtilsCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(Component.text(plugin.getLanguageService().tr(player, enabled ? "jade.on" : "jade.off"), NamedTextColor.YELLOW));
     }
 
+    private void handleArmor(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("Only players", NamedTextColor.RED));
+            return;
+        }
+        boolean enabled = plugin.getArmorHudManager().toggle(player);
+        player.sendMessage(Component.text(plugin.getLanguageService().tr(player, enabled ? "armor.on" : "armor.off"), NamedTextColor.YELLOW));
+    }
+
     private void handleRefill(CommandSender sender) {
+        if (!sender.hasPermission("someutils.admin")) {
+            sender.sendMessage(Component.text("No permission", NamedTextColor.RED));
+            return;
+        }
         boolean current = plugin.getPluginConfig().isRefillEnabled();
         plugin.getConfig().set("invtweaks.refill-enabled", !current);
         plugin.saveConfig();
@@ -118,16 +142,16 @@ public final class SomeUtilsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text("SomeUtils commands:", NamedTextColor.AQUA));
         sender.sendMessage(Component.text("/su sort [default|columns|stack]", NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/su jade", NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("/su armor", NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/su refill", NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/su pack", NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/su reload", NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("Middle click sorts the currently open inventory", NamedTextColor.DARK_GRAY));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(Arrays.asList("sort", "jade", "refill", "reload", "pack", "help"), args[0]);
+            return filter(Arrays.asList("sort", "jade", "armor", "refill", "reload", "pack", "help"), args[0]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("sort")) {
             return filter(Arrays.asList("default", "columns", "stack"), args[1]);

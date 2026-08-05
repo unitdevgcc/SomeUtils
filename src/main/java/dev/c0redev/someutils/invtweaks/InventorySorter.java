@@ -22,16 +22,22 @@ public final class InventorySorter {
     private InventorySorter() {
     }
 
-    public static void sortOpen(Player player, SortMode mode, boolean sortPlayerInventory, boolean sortHotbar) {
+    public static boolean sortOpen(Player player, SortMode mode, boolean sortPlayerInventory, boolean sortHotbar) {
         InventoryView view = player.getOpenInventory();
         Inventory top = view.getTopInventory();
 
         if (top != null && top.getHolder() != player && top.getSize() > 0) {
+            if (!SortContainerGui.isSupported(top)) {
+                return false;
+            }
             sortInventory(top, mode);
         } else if (sortPlayerInventory) {
             sortPlayerInventory(player.getInventory(), mode, sortHotbar);
+        } else {
+            return false;
         }
         player.updateInventory();
+        return true;
     }
 
     public static void sortInventory(Inventory inv, SortMode mode) {
@@ -45,13 +51,17 @@ public final class InventorySorter {
         items.sort(itemComparator());
         clearRange(inv, 0, inv.getSize());
 
-        if (mode == SortMode.COLUMNS) {
+        if (mode == SortMode.COLUMNS && isColumnLayoutSupported(inv.getSize())) {
             fillByColumns(inv, items, inv.getSize() / 9, 9, 0);
         } else {
             for (int i = 0; i < items.size() && i < inv.getSize(); i++) {
                 inv.setItem(i, items.get(i));
             }
         }
+    }
+
+    static boolean isColumnLayoutSupported(int size) {
+        return size > 0 && size % 9 == 0;
     }
 
     public static void sortPlayerInventory(PlayerInventory inv, SortMode mode, boolean sortHotbar) {
@@ -67,10 +77,12 @@ public final class InventorySorter {
         items.sort(itemComparator());
         clearRange(inv, first, last);
 
-        if (mode == SortMode.COLUMNS) {
-            fillByColumns(inv, items, sortHotbar ? 4 : 3, 9, first);
+        int rows = sortHotbar ? 4 : 3;
+        int span = last - first;
+        if (mode == SortMode.COLUMNS && span % 9 == 0) {
+            fillByColumns(inv, items, rows, 9, first);
         } else {
-            for (int i = 0; i < items.size() && i < last - first; i++) {
+            for (int i = 0; i < items.size() && i < span; i++) {
                 inv.setItem(i + first, items.get(i));
             }
         }

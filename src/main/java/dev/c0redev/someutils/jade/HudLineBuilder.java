@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import static dev.c0redev.someutils.jade.HudGlyphs.*;
 
@@ -41,7 +42,7 @@ final class HudLineBuilder {
 
         if (!target.getSubtitle().isEmpty()) {
             String text = plugin.getLanguageService().localizeHud(player, target.getSubtitle());
-            Component marker = packLoaded ? statusIcon(target.getSubtitle()) : Component.empty();
+            Component marker = packLoaded ? statusIcon(target.getSubtitle(), player) : Component.empty();
             lines.add(new HudLine(
                     Component.empty().append(marker).append(Component.text(gap + text, NamedTextColor.GRAY).font(DEFAULT_FONT)),
                     iconWidth + HudFontMetrics.estimateWidth(text)));
@@ -110,11 +111,11 @@ final class HudLineBuilder {
         };
     }
 
-    private static Component statusIcon(String rawText) {
-        if (rawText.contains("Unpowered")) {
+    private Component statusIcon(String rawText, Player player) {
+        if (rawText.contains(plugin.getLanguageService().tr(player, "hud.unpowered"))) {
             return Component.text(UNPOWERED_ICON, NamedTextColor.RED).font(HUD_FONT);
         }
-        if (rawText.contains("Powered")) {
+        if (rawText.contains(plugin.getLanguageService().tr(player, "hud.powered"))) {
             return Component.text(POWERED_ICON, NamedTextColor.GREEN).font(HUD_FONT);
         }
         return Component.text(HEALTH_ICON, NamedTextColor.RED).font(HUD_FONT);

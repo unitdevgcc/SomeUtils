@@ -36,6 +36,23 @@ jade:
   show-horse: true
   show-potions: true
 
+armor-hud:
+  enabled: true
+  # scoreboard или экспериментальный text_display через PacketEvents
+  mode: scoreboard
+  side: left
+  interval-ticks: 1
+  # скрывает пустые слоты и лишние отступы
+  compact: false
+  # порог анимации трещин, 0 отключает
+  pulse-threshold: 20
+  # показывает непустой off-hand
+  show-offhand: true
+  border:
+    accent: "#84BB63"
+    primary: "#AFC07A"
+    secondary: "#324332"
+
 damage-indicator:
   enabled: true
   show-for-players: true
@@ -54,3 +71,6 @@ resource-pack:
   public-url: ""
   force: false
   prompt: "SomeUtils packkk"
+  pack-format: 75
+  min-format: 70
+  max-format: 75

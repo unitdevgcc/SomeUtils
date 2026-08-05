@@ -34,15 +34,19 @@ public final class SortContainerGui implements Listener {
 
     public SortContainerGui(SomeUtilsPlugin plugin) {
         this.plugin = plugin;
-        this.visuals = new SortControlVisuals(plugin, sessions);
+        this.visuals = plugin.isPacketEventsPresent() ? new SortControlVisuals(plugin, sessions) : null;
     }
 
     public void registerPacketVisuals() {
-        visuals.register();
+        if (visuals != null) {
+            visuals.register();
+        }
     }
 
     public void unregisterPacketVisuals() {
-        visuals.unregister();
+        if (visuals != null) {
+            visuals.unregister();
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -66,9 +70,19 @@ public final class SortContainerGui implements Listener {
             opening.remove(player.getUniqueId());
             return;
         }
+        if (hasOtherViewer(source, player.getUniqueId())) {
+            opening.remove(player.getUniqueId());
+            event.setCancelled(true);
+            player.sendMessage("Container busy");
+            return;
+        }
         event.setCancelled(true);
         Bukkit.getScheduler().runTask(plugin, () -> {
             opening.remove(player.getUniqueId());
+            if (hasOtherViewer(source, player.getUniqueId())) {
+                player.sendMessage("Container busy");
+                return;
+            }
             open(player, new SortSession(source, plugin.getPluginConfig().isEvenPageMode()));
         });
     }
@@ -160,14 +174,17 @@ public final class SortContainerGui implements Listener {
         switch (slot) {
         case 1 -> {
             InventorySorter.sortInventory(session.source, InventorySorter.SortMode.DEFAULT);
+            syncSourceToAllViewers(session.source);
             reopen(player, session);
         }
         case 2 -> {
             InventorySorter.sortInventory(session.source, InventorySorter.SortMode.COLUMNS);
+            syncSourceToAllViewers(session.source);
             reopen(player, session);
         }
         case 3 -> {
             InventorySorter.sortInventory(session.source, InventorySorter.SortMode.STACK_ONLY);
+            syncSourceToAllViewers(session.source);
             reopen(player, session);
         }
         case 6 -> {
@@ -235,7 +252,19 @@ public final class SortContainerGui implements Listener {
         }
     }
 
-    private static boolean isSupported(Inventory inventory) {
+    private boolean hasOtherViewer(Inventory source, UUID self) {
+        for (Map.Entry<UUID, SortSession> entry : sessions.entrySet()) {
+            if (entry.getKey().equals(self)) {
+                continue;
+            }
+            if (entry.getValue().matches(source)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean isSupported(Inventory inventory) {
         InventoryHolder holder = inventory.getHolder();
         return holder instanceof Chest
                 || holder instanceof DoubleChest

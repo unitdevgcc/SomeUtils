@@ -1,6 +1,7 @@
 package dev.c0redev.someutils.jade;
 
 import dev.c0redev.someutils.config.PluginConfig;
+import dev.c0redev.someutils.lang.LanguageService;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Container;
@@ -11,13 +12,15 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Powerable;
 import org.bukkit.block.data.type.Beehive;
 import org.bukkit.Material;
+import org.bukkit.entity.Player;
 
 public final class BlockDataProvider {
 
     private BlockDataProvider() {
     }
 
-    public static TargetInfo getBlockInfo(Block block, PluginConfig cfg) {
+    public static TargetInfo getBlockInfo(Block block, PluginConfig cfg,
+                                          LanguageService languageService, Player player) {
         if (block == null || block.getType().isAir()) {
             return TargetInfo.empty();
         }
@@ -29,20 +32,21 @@ public final class BlockDataProvider {
 
         if (cfg.isShowRedstone()) {
             if (data instanceof AnaloguePowerable analogue) {
-                append(subtitle, "Power: " + analogue.getPower());
+                append(subtitle, languageService.tr(player, "hud.power") + " " + analogue.getPower());
             } else if (data instanceof Powerable powerable) {
-                append(subtitle, powerable.isPowered() ? "Powered" : "Unpowered");
+                append(subtitle, languageService.tr(player, powerable.isPowered() ? "hud.powered" : "hud.unpowered"));
             }
         }
 
         if (cfg.isShowGrowth() && data instanceof Ageable ageable) {
             int max = Math.max(1, ageable.getMaximumAge());
             int percent = (int) ((ageable.getAge() * 100.0) / max);
-            append(subtitle, "Growth: " + percent + "%");
+            append(subtitle, languageService.tr(player, "hud.growth") + " " + percent + "%");
         }
 
         if (cfg.isShowBeehive() && data instanceof Beehive beehive) {
-            append(subtitle, "Honey: " + beehive.getHoneyLevel() + "/" + beehive.getMaximumHoneyLevel());
+            append(subtitle, languageService.tr(player, "hud.honey") + " "
+                    + beehive.getHoneyLevel() + "/" + beehive.getMaximumHoneyLevel());
         }
 
         BlockState state = block.getState();
@@ -51,8 +55,9 @@ public final class BlockDataProvider {
             int cookTotal = Math.max(1, furnace.getCookTimeTotal());
             int cookPercent = furnace.getCookTime() * 100 / cookTotal;
             int burn = furnace.getBurnTime();
-            append(subtitle, "Smelting: " + cookPercent + "%");
-            append(detail, "Fuel: " + (burn > 0 ? (burn / 20) + "s" : "Empty"));
+            append(subtitle, languageService.tr(player, "hud.smelting") + " " + cookPercent + "%");
+            append(detail, languageService.tr(player, "hud.fuel") + " "
+                    + (burn > 0 ? (burn / 20) + "s" : languageService.tr(player, "hud.empty")));
         }
 
         if (cfg.isShowContainer() && state instanceof Container container && !(state instanceof Furnace)) {
@@ -62,7 +67,8 @@ public final class BlockDataProvider {
                     filled++;
                 }
             }
-            append(detail, "Items: " + filled + "/" + container.getInventory().getSize());
+            append(detail, languageService.tr(player, "hud.items") + " "
+                    + filled + "/" + container.getInventory().getSize());
         }
 
         TargetInfo.Tool tool = cfg.isShowTool() ? harvestTool(block.getType().name()) : TargetInfo.Tool.NONE;

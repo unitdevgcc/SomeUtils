@@ -1,6 +1,7 @@
 package dev.c0redev.someutils.jade;
 
 import dev.c0redev.someutils.config.PluginConfig;
+import dev.c0redev.someutils.lang.LanguageService;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.AbstractHorse;
@@ -8,14 +9,18 @@ import org.bukkit.entity.Ageable;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Villager;
+import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
+
+import java.util.Locale;
 
 public final class EntityDataProvider {
 
     private EntityDataProvider() {
     }
 
-    public static TargetInfo getEntityInfo(Entity entity, PluginConfig cfg) {
+    public static TargetInfo getEntityInfo(Entity entity, PluginConfig cfg,
+                                           LanguageService languageService, Player player) {
         if (entity == null) {
             return TargetInfo.empty();
         }
@@ -30,11 +35,12 @@ public final class EntityDataProvider {
             if (cfg.isShowHealth()) {
                 double health = living.getHealth();
                 double max = maxHealth(living);
-                append(subtitle, "Health: " + format(health) + "/" + format(max));
+                append(subtitle, languageService.tr(player, "hud.health") + " "
+                        + format(health) + "/" + format(max));
             }
 
             if (cfg.isShowPotions() && !living.getActivePotionEffects().isEmpty()) {
-                StringBuilder potions = new StringBuilder("Potions:");
+                StringBuilder potions = new StringBuilder(languageService.tr(player, "hud.potions"));
                 for (PotionEffect effect : living.getActivePotionEffects()) {
                     potions.append(' ').append(effect.getType().getKey().getKey());
                 }
@@ -43,7 +49,7 @@ public final class EntityDataProvider {
         }
 
         if (entity instanceof Ageable ageable && !ageable.isAdult()) {
-            append(subtitle, "Baby");
+            append(subtitle, languageService.tr(player, "hud.baby"));
         }
 
         if (cfg.isShowVillager() && entity instanceof Villager villager) {
@@ -54,7 +60,8 @@ public final class EntityDataProvider {
             double speed = attr(horse, Attribute.MOVEMENT_SPEED) * 42.16;
             double jump = attr(horse, Attribute.JUMP_STRENGTH);
             double jumpBlocks = -0.1817584952 * jump * jump * jump + 3.689713992 * jump * jump + 2.128599134 * jump - 0.343930367;
-            append(detail, "Speed: " + format(speed) + " m/s | Jump: " + format(jumpBlocks) + " m");
+            append(detail, languageService.tr(player, "hud.speed") + " " + format(speed)
+                    + " m/s | " + languageService.tr(player, "hud.jump") + " " + format(jumpBlocks) + " m");
         }
 
         return TargetInfo.ofEntity(entity, name, subtitle.toString(), detail.toString());
@@ -78,6 +85,6 @@ public final class EntityDataProvider {
     }
 
     private static String format(double value) {
-        return String.format("%.1f", value);
+        return String.format(Locale.ROOT, "%.1f", value);
     }
 }

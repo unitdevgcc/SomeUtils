@@ -32,6 +32,17 @@ public final class PluginConfig {
     private boolean showHorse;
     private boolean showPotions;
 
+    private boolean armorHudEnabled;
+    private boolean armorHudTextDisplay;
+    private int armorHudIntervalTicks;
+    private boolean armorHudRight;
+    private boolean armorHudCompact;
+    private int armorHudPulseThreshold;
+    private boolean armorHudShowOffhand;
+    private String armorHudAccent;
+    private String armorHudPrimary;
+    private String armorHudSecondary;
+
     private boolean damageIndicatorEnabled;
     private boolean damageIndicatorShowPlayers;
     private boolean damageIndicatorShowMobs;
@@ -48,6 +59,9 @@ public final class PluginConfig {
     private String resourcePackUrl;
     private boolean resourcePackForce;
     private String resourcePackPrompt;
+    private int resourcePackPackFormat;
+    private int resourcePackMinFormat;
+    private int resourcePackMaxFormat;
 
     public PluginConfig(SomeUtilsPlugin plugin) {
         this.plugin = plugin;
@@ -81,6 +95,17 @@ public final class PluginConfig {
         showHorse = cfg.getBoolean("jade.show-horse", true);
         showPotions = cfg.getBoolean("jade.show-potions", true);
 
+        armorHudEnabled = cfg.getBoolean("armor-hud.enabled", true);
+        armorHudTextDisplay = "text_display".equalsIgnoreCase(cfg.getString("armor-hud.mode", "scoreboard"));
+        armorHudIntervalTicks = Math.max(1, cfg.getInt("armor-hud.interval-ticks", 1));
+        armorHudRight = !"left".equalsIgnoreCase(cfg.getString("armor-hud.side", "left"));
+        armorHudCompact = cfg.getBoolean("armor-hud.compact", false);
+        armorHudPulseThreshold = Math.max(0, Math.min(100, cfg.getInt("armor-hud.pulse-threshold", 20)));
+        armorHudShowOffhand = cfg.getBoolean("armor-hud.show-offhand", true);
+        armorHudAccent = cfg.getString("armor-hud.border.accent", "#84BB63");
+        armorHudPrimary = cfg.getString("armor-hud.border.primary", "#AFC07A");
+        armorHudSecondary = cfg.getString("armor-hud.border.secondary", "#324332");
+
         damageIndicatorEnabled = cfg.getBoolean("damage-indicator.enabled", true);
         damageIndicatorShowPlayers = cfg.getBoolean("damage-indicator.show-for-players", true);
         damageIndicatorShowMobs = cfg.getBoolean("damage-indicator.show-for-mobs", true);
@@ -97,6 +122,9 @@ public final class PluginConfig {
         resourcePackUrl = cfg.getString("resource-pack.public-url", "");
         resourcePackForce = cfg.getBoolean("resource-pack.force", false);
         resourcePackPrompt = cfg.getString("resource-pack.prompt", "SomeUtils resource pack");
+        resourcePackPackFormat = cfg.getInt("resource-pack.pack-format", 75);
+        resourcePackMinFormat = cfg.getInt("resource-pack.min-format", 70);
+        resourcePackMaxFormat = cfg.getInt("resource-pack.max-format", resourcePackPackFormat);
     }
 
     public boolean isInvTweaksEnabled() { return invTweaksEnabled; }
@@ -124,6 +152,17 @@ public final class PluginConfig {
     public boolean isShowHorse() { return showHorse; }
     public boolean isShowPotions() { return showPotions; }
 
+    public boolean isArmorHudEnabled() { return armorHudEnabled; }
+    public boolean isArmorHudTextDisplay() { return armorHudTextDisplay; }
+    public int getArmorHudIntervalTicks() { return armorHudIntervalTicks; }
+    public boolean isArmorHudRight() { return armorHudRight; }
+    public boolean isArmorHudCompact() { return armorHudCompact; }
+    public int getArmorHudPulseThreshold() { return armorHudPulseThreshold; }
+    public boolean isArmorHudShowOffhand() { return armorHudShowOffhand; }
+    public String getArmorHudAccent() { return armorHudAccent; }
+    public String getArmorHudPrimary() { return armorHudPrimary; }
+    public String getArmorHudSecondary() { return armorHudSecondary; }
+
     public boolean isDamageIndicatorEnabled() { return damageIndicatorEnabled; }
     public boolean isDamageIndicatorShowPlayers() { return damageIndicatorShowPlayers; }
     public boolean isDamageIndicatorShowMobs() { return damageIndicatorShowMobs; }
@@ -140,4 +179,7 @@ public final class PluginConfig {
     public String getResourcePackUrl() { return resourcePackUrl; }
     public boolean isResourcePackForce() { return resourcePackForce; }
     public String getResourcePackPrompt() { return resourcePackPrompt; }
+    public int getResourcePackPackFormat() { return resourcePackPackFormat; }
+    public int getResourcePackMinFormat() { return resourcePackMinFormat; }
+    public int getResourcePackMaxFormat() { return resourcePackMaxFormat; }
 }

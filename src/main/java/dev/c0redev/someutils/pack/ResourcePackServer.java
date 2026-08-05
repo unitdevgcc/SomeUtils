@@ -2,6 +2,7 @@ package dev.c0redev.someutils.pack;
 
 import com.sun.net.httpserver.HttpServer;
 import dev.c0redev.someutils.SomeUtilsPlugin;
+import dev.c0redev.someutils.armor.ArmorScoreboardGlyphs;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -108,6 +109,9 @@ public final class ResourcePackServer implements Listener {
             ready = true;
             Bukkit.getPluginManager().registerEvents(this, plugin);
             plugin.getLogger().info("Resource pack ready: " + packUrl);
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                sendPack(player);
+            }
         } catch (Exception e) {
             ready = false;
             plugin.getLogger().log(Level.WARNING, "Resource pack failed", e);
@@ -134,10 +138,20 @@ public final class ResourcePackServer implements Listener {
 
     public String getBlockGlyph(Material material) {
         String index = wailaGlyphMap.getProperty(material.getKey().getKey());
-        if (index == null) {
+        if (index == null || index.isBlank()) {
             return "";
         }
-        return new String(Character.toChars(BLOCK_GLYPH_START + Integer.parseInt(index)));
+        try {
+            int ordinal = Integer.parseInt(index.trim());
+            if (ordinal < 0) {
+                return "";
+            }
+            return new String(Character.toChars(BLOCK_GLYPH_START + ordinal));
+        } catch (NumberFormatException ignored) {
+            return "";
+        } catch (IllegalArgumentException ignored) {
+            return "";
+        }
     }
 
     public void sendPack(Player player) {
@@ -187,16 +201,21 @@ public final class ResourcePackServer implements Listener {
             write(zip, "pack.mcmeta", """
                     {
                       "pack": {
-                        "pack_format": 75,
-                        "min_format": 70,
-                        "max_format": 75,
+                      "pack_format": %d,
+                      "min_format": %d,
+                      "max_format": %d,
                         "description": "SomeUtils Jade HUD"
                       }
                     }
-                    """.getBytes(StandardCharsets.UTF_8));
+                    """.formatted(plugin.getPluginConfig().getResourcePackPackFormat(),
+                    plugin.getPluginConfig().getResourcePackMinFormat(),
+                    plugin.getPluginConfig().getResourcePackMaxFormat())
+                    .getBytes(StandardCharsets.UTF_8));
 
             write(zip, "assets/someutils/font/jade.json", vanillaIconFont().getBytes(StandardCharsets.UTF_8));
             write(zip, "assets/someutils/font/waila.json", wailaFont().getBytes(StandardCharsets.UTF_8));
+            write(zip, "assets/someutils/font/armor.json", armorFont().getBytes(StandardCharsets.UTF_8));
+            write(zip, "assets/someutils/font/armor_scoreboard.json", armorScoreboardFont().getBytes(StandardCharsets.UTF_8));
             write(zip, "assets/someutils/textures/font/waila_start.png", wailaPartPng(2, true, false));
             write(zip, "assets/someutils/textures/font/waila_part.png", wailaPartPng(10, false, false));
             write(zip, "assets/someutils/textures/font/waila_end.png", wailaPartPng(2, false, true));
@@ -223,12 +242,396 @@ public final class ResourcePackServer implements Listener {
             if (buttons != null) {
                 write(zip, "assets/someutils/textures/gui/invtweaks_buttons.png", buttons);
             }
+            writeArmorHudAssets(zip);
+            writeArmorItemAssets(zip);
+            writeArmorPercentAssets(zip);
         }
 
         MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
         try (InputStream input = new FileInputStream(packFile)) {
             packHash = sha1.digest(input.readAllBytes());
         }
+    }
+
+    private void writeArmorHudAssets(ZipOutputStream zip) throws Exception {
+        String base = "assets/someutils/textures/armor_hud/";
+        String[] names = {
+                "panel.png", "panel_line.png", "side_rail.png", "bar_background.png",
+                "slot_helmet.png", "slot_chestplate.png", "slot_leggings.png", "slot_boots.png",
+                "empty_helmet.png", "empty_chestplate.png", "empty_leggings.png", "empty_boots.png",
+                "armor_title.png"
+        };
+        for (String name : names) {
+            byte[] asset = readPluginResource(base + name);
+            if (asset != null) {
+                write(zip, base + name, asset);
+            }
+        }
+        for (int frame = 0; frame <= ArmorScoreboardGlyphs.BAR_FRAMES; frame++) {
+            writePluginAsset(zip, base, "bar_fill_" + frame + ".png");
+        }
+        for (int frame = 0; frame < ArmorScoreboardGlyphs.ANIMATION_FRAMES; frame++) {
+            write(zip, base + "frame_top_" + frame + ".png", png(borderFrame("top", frame)));
+            write(zip, base + "frame_rail_" + frame + ".png", png(borderFrame("rail", frame)));
+            write(zip, base + "frame_bottom_" + frame + ".png", png(borderFrame("bottom", frame)));
+        }
+    }
+
+    private BufferedImage borderFrame(String kind, int phase) {
+        BufferedImage image = new BufferedImage(96, 18, BufferedImage.TYPE_INT_ARGB);
+        Color accent = parseColor(plugin.getPluginConfig().getArmorHudAccent(), new Color(132, 187, 99));
+        Color primary = parseColor(plugin.getPluginConfig().getArmorHudPrimary(), new Color(175, 192, 122));
+        Color secondary = parseColor(plugin.getPluginConfig().getArmorHudSecondary(), new Color(50, 67, 50));
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                boolean edge = (kind.equals("top") && y == 17 && x >= 2 && x < 94)
+                        || (kind.equals("bottom") && y == 0 && x >= 2 && x < 94)
+                        || (kind.equals("rail") && (x == 0 || x == 95));
+                boolean rounded = (kind.equals("top") && y == 16 && (x == 1 || x == 94))
+                        || (kind.equals("bottom") && y == 1 && (x == 1 || x == 94));
+                if (!edge && !rounded) continue;
+                int position = kind.equals("rail") ? y : x;
+                double wave = 0.5 + 0.5 * Math.sin((position - phase * 3) * Math.PI / 24.0);
+                Color base = mix(primary, secondary, wave);
+                double pulse = Math.max(0.0, 1.0 - Math.abs(((position - phase * 3) % 32 + 32) % 32 - 16) / 16.0);
+                image.setRGB(x, y, mix(base, accent, pulse * 0.72).getRGB());
+            }
+        }
+        return image;
+    }
+
+    private static Color mix(Color a, Color b, double amount) {
+        amount = Math.max(0.0, Math.min(1.0, amount));
+        return new Color(
+                (int) Math.round(a.getRed() + (b.getRed() - a.getRed()) * amount),
+                (int) Math.round(a.getGreen() + (b.getGreen() - a.getGreen()) * amount),
+                (int) Math.round(a.getBlue() + (b.getBlue() - a.getBlue()) * amount),
+                255);
+    }
+
+    private static Color parseColor(String value, Color fallback) {
+        try {
+            String hex = value == null ? "" : value.trim();
+            if (hex.startsWith("#")) hex = hex.substring(1);
+            if (hex.length() != 6) return fallback;
+            return new Color(Integer.parseInt(hex, 16));
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
+    }
+
+    private void writePluginAsset(ZipOutputStream zip, String base, String name) throws Exception {
+        byte[] asset = readPluginResource(base + name);
+        if (asset != null) {
+            write(zip, base + name, asset);
+        }
+    }
+
+    private void writeArmorItemAssets(ZipOutputStream zip) throws Exception {
+        BufferedImage barTrack = barTrackImage();
+        for (String material : ArmorScoreboardGlyphs.materials()) {
+            BufferedImage item = readImage("vanilla-textures/item/" + material + ".png");
+            if (item != null) {
+                for (int frame = 0; frame <= ArmorScoreboardGlyphs.BAR_FRAMES; frame++) {
+                    write(zip, "assets/someutils/textures/armor_hud/durability_" + material + "_" + frame + ".png",
+                            png(compositeDurability(item, barTrack, frame)));
+                }
+            }
+        }
+        for (String slot : new String[]{"helmet", "chestplate", "leggings", "boots"}) {
+            BufferedImage empty = missingSlotImage(slot);
+            write(zip, "assets/someutils/textures/armor_hud/missing_" + slot + ".png",
+                    png(empty));
+            write(zip, "assets/someutils/textures/armor_hud/broken_" + slot + ".png",
+                    png(tintBroken(empty)));
+        }
+        BufferedImage off = new BufferedImage(16, 19, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D og = off.createGraphics();
+        og.setColor(new Color(180, 180, 190, 255));
+        og.fillRect(4, 3, 8, 10);
+        og.setColor(new Color(90, 90, 100, 255));
+        og.drawRect(4, 3, 7, 9);
+        og.drawImage(barTrack, 0, 16, null);
+        og.dispose();
+        write(zip, "assets/someutils/textures/armor_hud/offhand.png", png(off));
+        for (int frame = 0; frame < ArmorScoreboardGlyphs.CRACK_FRAMES; frame++) {
+            write(zip, "assets/someutils/textures/armor_hud/crack_" + frame + ".png", png(crackOverlay(frame)));
+        }
+    }
+
+    private BufferedImage crackOverlay(int frame) {
+        BufferedImage image = new BufferedImage(16, 19, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        int alpha = 120 + Math.abs(3 - frame) * 18;
+        g.setColor(new Color(255, 224, 160, Math.min(255, alpha)));
+        int[][] segments = {
+                {8, 2, 7, 5}, {7, 5, 9, 7}, {9, 7, 7, 10},
+                {7, 10, 5, 12}, {9, 7, 12, 9}, {5, 12, 4, 14},
+                {12, 9, 13, 12}
+        };
+        int visible = Math.min(segments.length, 2 + frame);
+        for (int i = 0; i < visible; i++) {
+            int[] line = segments[i];
+            g.drawLine(line[0], line[1], line[2], line[3]);
+        }
+        if (frame == 3 || frame == 7) {
+            g.setColor(new Color(255, 255, 225, 230));
+            g.fillRect(frame == 3 ? 11 : 4, frame == 3 ? 4 : 7, 1, 1);
+        }
+        g.dispose();
+        image.setRGB(15, 18, new Color(0, 0, 0, 1).getRGB());
+        return image;
+    }
+
+    private void writeArmorPercentAssets(ZipOutputStream zip) throws Exception {
+        String base = "assets/someutils/textures/armor_hud/";
+        String[] percentSlots = {"helmet", "chestplate", "leggings", "boots", "offhand"};
+        String[] states = {"healthy", "warn", "critical"};
+        for (int slot = 0; slot < percentSlots.length; slot++) {
+            for (int state = 0; state < states.length; state++) {
+                for (int frame = 0; frame < ArmorScoreboardGlyphs.ANIMATION_FRAMES; frame++) {
+                    write(zip, base + "percent_" + percentSlots[slot] + "_" + states[state] + "_" + frame + ".png",
+                            png(percentBackground(percentSlots[slot], state, frame)));
+                }
+            }
+        }
+        for (int percent = 0; percent <= 100; percent++) {
+            write(zip, base + "percent_text_" + percent + ".png", png(percentTextGlyph(percent)));
+        }
+    }
+
+    private BufferedImage percentBackground(String slot, int state, int phase) {
+        BufferedImage image = new BufferedImage(32, 18, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        Color base = switch (slot) {
+            case "helmet" -> new Color(75, 155, 205, 255);
+            case "chestplate" -> new Color(83, 173, 111, 255);
+            case "leggings" -> new Color(111, 102, 194, 255);
+            case "boots" -> new Color(190, 126, 65, 255);
+            case "offhand" -> new Color(154, 103, 190, 255);
+            default -> parseColor(plugin.getPluginConfig().getArmorHudAccent(), new Color(132, 187, 99));
+        };
+        Color stateColor = switch (state) {
+            case 2 -> new Color(220, 68, 62, 255);
+            case 1 -> new Color(219, 164, 62, 255);
+            default -> base;
+        };
+        double wave = state == 0 ? 0.12 : 0.28 + 0.25 * (0.5 + 0.5 * Math.sin((phase - 4) * Math.PI / 16.0));
+        Color fill = mix(stateColor, new Color(10, 16, 20, 255), 0.48);
+        Color glow = mix(stateColor, Color.WHITE, wave * 0.35);
+        g.setColor(new Color(fill.getRed(), fill.getGreen(), fill.getBlue(), 220));
+        g.fillRoundRect(1, 2, 30, 14, 4, 4);
+        g.setColor(new Color(glow.getRed(), glow.getGreen(), glow.getBlue(), 220));
+        g.drawRoundRect(1, 2, 30, 14, 4, 4);
+        g.setColor(new Color(255, 255, 255, state == 2 ? (int) (35 + wave * 80) : 28));
+        g.fillRect(4 + Math.floorMod(phase, 24), 4, 2, 1);
+        g.dispose();
+        return image;
+    }
+
+    private void drawPixelText(Graphics2D g, String text, int x, int y, Color color) {
+        int xOffset = 0;
+        for (char c : text.toCharArray()) {
+            drawPixelChar(g, c, x + xOffset, y, color);
+            xOffset += c == '%' ? 5 : 4;
+        }
+    }
+
+    private void drawPixelChar(Graphics2D g, char c, int x, int y, Color color) {
+        g.setColor(color);
+        int[][] pixels = switch (c) {
+            case '0' -> new int[][]{{1,1,1},{1,0,1},{1,0,1},{1,0,1},{1,1,1}};
+            case '1' -> new int[][]{{0,1,0},{1,1,0},{0,1,0},{0,1,0},{1,1,1}};
+            case '2' -> new int[][]{{1,1,1},{0,0,1},{1,1,1},{1,0,0},{1,1,1}};
+            case '3' -> new int[][]{{1,1,1},{0,0,1},{0,1,1},{0,0,1},{1,1,1}};
+            case '4' -> new int[][]{{1,0,1},{1,0,1},{1,1,1},{0,0,1},{0,0,1}};
+            case '5' -> new int[][]{{1,1,1},{1,0,0},{1,1,1},{0,0,1},{1,1,1}};
+            case '6' -> new int[][]{{1,1,1},{1,0,0},{1,1,1},{1,0,1},{1,1,1}};
+            case '7' -> new int[][]{{1,1,1},{0,0,1},{0,0,1},{0,1,0},{0,1,0}};
+            case '8' -> new int[][]{{1,1,1},{1,0,1},{1,1,1},{1,0,1},{1,1,1}};
+            case '9' -> new int[][]{{1,1,1},{1,0,1},{1,1,1},{0,0,1},{1,1,1}};
+            case '%' -> new int[][]{{1,0,1},{0,0,1},{0,1,0},{1,0,0},{1,0,1}};
+            default -> new int[][]{{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}};
+        };
+        for (int row = 0; row < pixels.length; row++) {
+            for (int col = 0; col < pixels[row].length; col++) {
+                if (pixels[row][col] == 1) {
+                    g.fillRect(x + col, y + row, 1, 1);
+                }
+            }
+        }
+    }
+
+    private BufferedImage percentTextGlyph(int percent) {
+        BufferedImage image = new BufferedImage(32, 14, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        String text = Math.clamp(percent, 0, 100) + "%";
+        int width = 0;
+        for (char c : text.toCharArray()) width += c == '%' ? 5 : 4;
+        width--;
+        drawPixelText(g, text, (32 - width) / 2, 7, new Color(235, 255, 235, 255));
+        g.dispose();
+        return image;
+    }
+
+    private BufferedImage missingSlotImage(String slot) throws Exception {
+        BufferedImage source = readImage("vanilla-textures/item/iron_" + slot + ".png");
+        BufferedImage image = new BufferedImage(16, 19, BufferedImage.TYPE_INT_ARGB);
+        if (source == null) return image;
+        for (int y = 0; y < Math.min(16, source.getHeight()); y++) {
+            for (int x = 0; x < Math.min(16, source.getWidth()); x++) {
+                Color pixel = new Color(source.getRGB(x, y), true);
+                if (pixel.getAlpha() == 0) continue;
+                int shade = (pixel.getRed() * 3 + pixel.getGreen() * 5 + pixel.getBlue() * 2) / 10;
+                int value = 42 + shade * 42 / 255;
+                image.setRGB(x, y, new Color(value, value + 7, value + 9,
+                        Math.max(55, pixel.getAlpha() * 3 / 5)).getRGB());
+            }
+        }
+        return image;
+    }
+
+    private static BufferedImage tintBroken(BufferedImage src) {
+        BufferedImage out = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < src.getHeight(); y++) {
+            for (int x = 0; x < src.getWidth(); x++) {
+                int argb = src.getRGB(x, y);
+                int a = (argb >>> 24) & 0xFF;
+                if (a == 0) {
+                    continue;
+                }
+                int r = (argb >> 16) & 0xFF;
+                int g = (argb >> 8) & 0xFF;
+                int b = argb & 0xFF;
+                int nr = Math.min(255, (int) (r * 0.35 + 180));
+                int ng = Math.min(255, (int) (g * 0.25));
+                int nb = Math.min(255, (int) (b * 0.25));
+                if (Math.abs(x - y) <= 1 && y < 16) {
+                    nr = 40; ng = 10; nb = 10; a = 220;
+                }
+                out.setRGB(x, y, (a << 24) | (nr << 16) | (ng << 8) | nb);
+            }
+        }
+        return out;
+    }
+
+    // один glyph сохраняет позицию иконки и полосы в scoreboard
+    private static BufferedImage compositeIconWithBar(BufferedImage icon, BufferedImage barTrack) {
+        BufferedImage out = new BufferedImage(16, 19, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        g.drawImage(icon, 0, 0, 16, 16, 0, 0,
+                Math.min(16, icon.getWidth()), Math.min(16, icon.getHeight()), null);
+        g.drawImage(barTrack, 0, 16, null);
+        g.dispose();
+        return out;
+    }
+
+    private static BufferedImage compositeDurability(BufferedImage icon, BufferedImage barTrack, int frame) {
+        BufferedImage out = compositeIconWithBar(icon, barTrack);
+        Graphics2D g = out.createGraphics();
+        int filled = Math.round(14.0f * frame / ArmorScoreboardGlyphs.BAR_FRAMES);
+        g.setColor(Color.WHITE);
+        g.fillRect(1, 17, filled, 1);
+        g.dispose();
+        return out;
+    }
+
+    private static BufferedImage barTrackImage() {
+        BufferedImage bar = new BufferedImage(16, 3, BufferedImage.TYPE_INT_ARGB);
+        int accent = 0xFF84BB63;
+        int trough = 0xFF0F141C;
+        for (int x = 1; x < 15; x++) {
+            bar.setRGB(x, 0, accent);
+            bar.setRGB(x, 1, trough);
+            bar.setRGB(x, 2, accent);
+        }
+        return bar;
+    }
+
+    private String armorFont() {
+        return """
+                {
+                  "providers": [
+                    {"type":"bitmap","file":"someutils:armor_hud/slot_helmet.png","ascent":8,"height":16,"chars":["\\uE100"]},
+                    {"type":"bitmap","file":"someutils:armor_hud/slot_chestplate.png","ascent":8,"height":16,"chars":["\\uE101"]},
+                    {"type":"bitmap","file":"someutils:armor_hud/slot_leggings.png","ascent":8,"height":16,"chars":["\\uE102"]},
+                    {"type":"bitmap","file":"someutils:armor_hud/slot_boots.png","ascent":8,"height":16,"chars":["\\uE103"]},
+                    {"type":"bitmap","file":"someutils:armor_hud/panel_line.png","ascent":14,"height":18,"chars":["\\uE110"]},
+                    {"type":"space","advances":{"\\uE111":-129}}
+                  ]
+                }
+                """;
+    }
+
+    private String armorScoreboardFont() {
+        StringBuilder providers = new StringBuilder();
+
+        for (String material : ArmorScoreboardGlyphs.materials()) {
+            int idx = ArmorScoreboardGlyphs.materials().indexOf(material);
+            for (int frame = 0; frame <= ArmorScoreboardGlyphs.BAR_FRAMES; frame++) {
+                appendProvider(providers, "someutils:armor_hud/durability_" + material + "_" + frame + ".png", 8, 19,
+                        ArmorScoreboardGlyphs.ICON_WITH_BAR_BASE
+                                + idx * (ArmorScoreboardGlyphs.BAR_FRAMES + 1) + frame);
+            }
+        }
+
+        String[] slots = {"helmet", "chestplate", "leggings", "boots"};
+        for (int i = 0; i < slots.length; i++) {
+            appendProvider(providers, "someutils:armor_hud/missing_" + slots[i] + ".png", 8, 19,
+                    ArmorScoreboardGlyphs.MISSING_BASE + i);
+            appendProvider(providers, "someutils:armor_hud/broken_" + slots[i] + ".png", 8, 19,
+                    ArmorScoreboardGlyphs.BROKEN_BASE + i);
+        }
+        appendProvider(providers, "someutils:armor_hud/offhand.png", 8, 19, ArmorScoreboardGlyphs.OFFHAND_ICON);
+        for (int frame = 0; frame < ArmorScoreboardGlyphs.CRACK_FRAMES; frame++) {
+            appendProvider(providers, "someutils:armor_hud/crack_" + frame + ".png", 8, 19,
+                    ArmorScoreboardGlyphs.CRACK_BASE + frame);
+        }
+
+        String[] percentSlots = {"helmet", "chestplate", "leggings", "boots", "offhand"};
+        String[] states = {"healthy", "warn", "critical"};
+        for (int slot = 0; slot < percentSlots.length; slot++) {
+            for (int state = 0; state < states.length; state++) {
+                for (int frame = 0; frame < ArmorScoreboardGlyphs.ANIMATION_FRAMES; frame++) {
+                    appendProvider(providers, "someutils:armor_hud/percent_" + percentSlots[slot] + "_"
+                                    + states[state] + "_" + frame + ".png", 8, 19,
+                            ArmorScoreboardGlyphs.PERCENT_BACKGROUND_BASE
+                                    + slot * 3 * ArmorScoreboardGlyphs.ANIMATION_FRAMES
+                                    + state * ArmorScoreboardGlyphs.ANIMATION_FRAMES + frame);
+                }
+            }
+        }
+        for (int percent = 0; percent <= 100; percent++) {
+            appendProvider(providers, "someutils:armor_hud/percent_text_" + percent + ".png", 8, 14,
+                    ArmorScoreboardGlyphs.PERCENT_TEXT_BASE + percent);
+        }
+
+        for (int frame = 0; frame < ArmorScoreboardGlyphs.ANIMATION_FRAMES; frame++) {
+            appendProvider(providers, "someutils:armor_hud/frame_top_" + frame + ".png", 14, 18,
+                    ArmorScoreboardGlyphs.FRAME_TOP_BASE + frame);
+            appendProvider(providers, "someutils:armor_hud/frame_rail_" + frame + ".png", 14, 18,
+                    ArmorScoreboardGlyphs.FRAME_RAIL_BASE + frame);
+            appendProvider(providers, "someutils:armor_hud/frame_bottom_" + frame + ".png", 14, 18,
+                    ArmorScoreboardGlyphs.FRAME_BOTTOM_BASE + frame);
+        }
+        appendProvider(providers, "someutils:armor_hud/armor_title.png", 7, 7,
+                ArmorScoreboardGlyphs.TITLE_BASE);
+        providers.append(',').append("{\"type\":\"space\",\"advances\":{\"")
+                .append(Character.toChars(ArmorScoreboardGlyphs.ICON_BACKTRACK)).append("\":-72,\"")
+                .append(Character.toChars(ArmorScoreboardGlyphs.PERCENT_TEXT_BACKTRACK)).append("\":-32,\"")
+                .append(Character.toChars(ArmorScoreboardGlyphs.CRACK_BACKTRACK)).append("\":-17}}");
+
+        return "{\"providers\":[" + providers + "]}";
+    }
+
+    private void appendProvider(StringBuilder providers, String file, int ascent, int height, int codePoint) {
+        if (!providers.isEmpty()) {
+            providers.append(',');
+        }
+        providers.append("{\"type\":\"bitmap\",\"file\":\"").append(file)
+                .append("\",\"ascent\":").append(ascent)
+                .append(",\"height\":").append(height)
+                .append(",\"chars\":[\"").append(Character.toChars(codePoint)).append("\"]}");
     }
 
     private String vanillaIconFont() {
@@ -490,7 +893,7 @@ public final class ResourcePackServer implements Listener {
     private void writeGuiModels(ZipOutputStream zip) throws Exception {
         String[] names = {
             "sort", "columns", "stack", "previous", "next", "close", "fill",
-            "lang_ru", "lang_en", "lang_auto", "jade_on", "jade_off", "logo", "divider",
+                "lang_ru", "lang_en", "lang_auto", "jade_on", "jade_off", "armor_on", "armor_off", "armor_border_accent", "armor_border_primary", "armor_border_secondary", "logo", "divider",
             "frame", "panel",
         };
         for (String name : names) {
@@ -617,6 +1020,16 @@ public final class ResourcePackServer implements Listener {
                 g.fillRect(3 + i, 3 + i, 1, 1);
             }
         }
+        case "armor_on" -> drawArmorIcon(g, accent, true);
+        case "armor_off" -> drawArmorIcon(g, muted, false);
+        case "armor_border_accent", "armor_border_primary", "armor_border_secondary" -> {
+            String channel = name.substring("armor_border_".length());
+            g.setColor(parseColor(plugin.getConfig().getString("armor-hud.border." + channel),
+                    name.endsWith("accent") ? accent : name.endsWith("primary")
+                            ? new Color(175, 192, 122, 255) : new Color(50, 67, 50, 255)));
+            g.drawRoundRect(2, 3, 11, 9, 3, 3);
+            g.fillRect(4, 7, 8, 1);
+        }
         case "logo" -> {
 
             g.setColor(new Color(198, 240, 170, 255));
@@ -669,6 +1082,17 @@ public final class ResourcePackServer implements Listener {
         g.fillRect(6, 6, 4, 4);
         g.setColor(highlight);
         g.fillRect(6, 6, 2, 2);
+    }
+
+    private static void drawArmorIcon(Graphics2D g, Color color, boolean enabled) {
+        g.setColor(color);
+        g.fillRect(5, 3, 6, 2);
+        g.fillRect(3, 5, 10, 6);
+        g.fillRect(5, 11, 6, 2);
+        if (!enabled) {
+            g.setColor(new Color(224, 91, 82, 255));
+            for (int i = 0; i < 10; i++) g.fillRect(3 + i, 3 + i, 1, 1);
+        }
     }
 
     private BufferedImage readImage(String path) throws Exception {

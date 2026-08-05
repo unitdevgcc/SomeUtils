@@ -8,7 +8,7 @@ description: utilities and fun
 commands:
   someutils:
     description: SomeUtils control
-    usage: /someutils [sort|jade|refill|pack|reload|help]
+    usage: /someutils [sort|jade|armor|refill|pack|reload|help]
     aliases: [su]
 permissions:
   someutils.use:

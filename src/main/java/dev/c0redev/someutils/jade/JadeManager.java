@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 public final class JadeManager implements Listener {
 
@@ -25,8 +26,9 @@ public final class JadeManager implements Listener {
     private final Map<UUID, Boolean> disabled = new ConcurrentHashMap<>();
     private final Map<UUID, BreakProgress> breaking = new ConcurrentHashMap<>();
     private final Map<UUID, String> lastHud = new ConcurrentHashMap<>();
-    private final Map<UUID, HudBossBarPresenter> bars = new ConcurrentHashMap<>();
+    private final Map<UUID, HudPresenter> bars = new ConcurrentHashMap<>();
     private BukkitTask task;
+    private boolean warnedMissingPacketEvents;
 
     public JadeManager(SomeUtilsPlugin plugin) {
         this.plugin = plugin;
@@ -35,6 +37,13 @@ public final class JadeManager implements Listener {
 
     public void start() {
         stop();
+        if (!plugin.isPacketEventsPresent()) {
+            if (!warnedMissingPacketEvents) {
+                plugin.getLogger().warning("Jade HUD disabled: packetevents not present");
+                warnedMissingPacketEvents = true;
+            }
+            return;
+        }
         task = Bukkit.getScheduler().runTaskTimer(
                 plugin,
                 this::tick,
@@ -76,19 +85,24 @@ public final class JadeManager implements Listener {
 
     private void tick() {
         PluginConfig cfg = plugin.getPluginConfig();
-        if (!cfg.isJadeEnabled()) {
+        if (!cfg.isJadeEnabled() || !plugin.isPacketEventsPresent()) {
             return;
         }
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (isEnabledFor(player)) {
-                render(player, JadeTargetLocator.locate(player, cfg));
+                render(player, JadeTargetLocator.locate(player, cfg, plugin.getLanguageService()));
             }
         }
     }
 
     private void render(Player player, TargetInfo target) {
+        if (!plugin.isPacketEventsPresent()) {
+            return;
+        }
         if (target.isEmpty()) {
-            hideHud(player);
+            if (bars.containsKey(player.getUniqueId()) || lastHud.containsKey(player.getUniqueId())) {
+                hideHud(player);
+            }
             return;
         }
 
@@ -101,10 +115,27 @@ public final class JadeManager implements Listener {
 
         boolean packLoaded = plugin.getPackServer() != null && plugin.getPackServer().isLoaded(player);
         List<HudLine> lines = lineBuilder.buildLines(player, target, packLoaded, breakProgress);
-        HudBossBarPresenter presenter = bars.computeIfAbsent(player.getUniqueId(), id -> new HudBossBarPresenter(player, lineBuilder));
+        HudPresenter presenter = bars.get(player.getUniqueId());
+        if (presenter == null) {
+            presenter = createPresenter(player);
+            if (presenter == null) {
+                return;
+            }
+            bars.put(player.getUniqueId(), presenter);
+        }
         presenter.update(player, lines, packLoaded,
                 plugin.getPluginConfig().getJadeVerticalOffsetBars(),
                 plugin.getPluginConfig().getJadeLineGapBars());
+    }
+
+    private HudPresenter createPresenter(Player player) {
+        try {
+            // класс загружается только при наличии PacketEvents
+            return new HudBossBarPresenter(player, lineBuilder);
+        } catch (NoClassDefFoundError | ExceptionInInitializerError e) {
+            plugin.getLogger().log(Level.WARNING, "Jade HUD presenter failed to load", e);
+            return null;
+        }
     }
 
     @EventHandler
@@ -153,9 +184,13 @@ public final class JadeManager implements Listener {
 
     private void hideHud(Player player) {
         lastHud.remove(player.getUniqueId());
-        HudBossBarPresenter presenter = bars.remove(player.getUniqueId());
+        HudPresenter presenter = bars.remove(player.getUniqueId());
         if (presenter != null) {
-            presenter.remove(player);
+            try {
+                presenter.remove(player);
+            } catch (NoClassDefFoundError ignored) {
+                // PacketEvents выгружен во время сессии
+            }
         }
     }
 

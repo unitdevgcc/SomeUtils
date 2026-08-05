@@ -1,6 +1,7 @@
 package dev.c0redev.someutils.jade;
 
 import dev.c0redev.someutils.config.PluginConfig;
+import dev.c0redev.someutils.lang.LanguageService;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.block.Block;
 import org.bukkit.entity.LivingEntity;
@@ -13,7 +14,7 @@ final class JadeTargetLocator {
     private JadeTargetLocator() {
     }
 
-    static TargetInfo locate(Player player, PluginConfig cfg) {
+    static TargetInfo locate(Player player, PluginConfig cfg, LanguageService languageService) {
         double range = cfg.getJadeRange();
         if (cfg.isShowEntities()) {
             RayTraceResult hit = player.getWorld().rayTraceEntities(
@@ -24,13 +25,13 @@ final class JadeTargetLocator {
                     entity -> entity != player && entity instanceof LivingEntity && player.hasLineOfSight(entity)
             );
             if (hit != null && hit.getHitEntity() != null) {
-                return EntityDataProvider.getEntityInfo(hit.getHitEntity(), cfg);
+                return EntityDataProvider.getEntityInfo(hit.getHitEntity(), cfg, languageService, player);
             }
         }
         if (cfg.isShowBlocks()) {
             Block block = player.getTargetBlockExact((int) Math.ceil(range), FluidCollisionMode.NEVER);
             if (block != null && !block.getType().isAir()) {
-                return BlockDataProvider.getBlockInfo(block, cfg);
+                return BlockDataProvider.getBlockInfo(block, cfg, languageService, player);
             }
         }
         return TargetInfo.empty();
